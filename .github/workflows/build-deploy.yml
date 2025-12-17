@@ -1,6 +1,7 @@
 name: Build & Deploy Recipe Site
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
