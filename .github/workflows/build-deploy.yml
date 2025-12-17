@@ -7,6 +7,7 @@ on:
     paths:
       - 'recipes/**'
       - 'src/**'
+      - 'public/**'
       - 'astro.config.mjs'
       - 'package.json'
       - 'package-lock.json'
@@ -39,12 +40,31 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build site
         run: npm run build
         env:
           CI: true
+
+          # Defaults for GitHub Pages project sites: https://<owner>.github.io/<repo>/ [web:93]
+          # Your astro.config.mjs can use these to compute default site/base.
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPO: ${{ github.event.repository.name }}
+
+          # Optional overrides (set in repo Settings → Secrets and variables → Actions → Variables)
+          # For username.github.io or a custom domain:
+          #   PUBLIC_SITE=https://username.github.io   (or https://example.com)
+          #   PUBLIC_BASE=/   (or empty)
+          PUBLIC_SITE: ${{ vars.PUBLIC_SITE }}
+          PUBLIC_BASE: ${{ vars.PUBLIC_BASE }}
+
+          # Optional branding overrides:
+          PUBLIC_APP_NAME: ${{ vars.PUBLIC_APP_NAME }}
+          PUBLIC_APP_SHORT_NAME: ${{ vars.PUBLIC_APP_SHORT_NAME }}
+          PUBLIC_APP_DESCRIPTION: ${{ vars.PUBLIC_APP_DESCRIPTION }}
+          PUBLIC_THEME_COLOR: ${{ vars.PUBLIC_THEME_COLOR }}
+          PUBLIC_BG_COLOR: ${{ vars.PUBLIC_BG_COLOR }}
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
