@@ -1,0 +1,115 @@
+---
+const { cookware } = Astro.props;
+
+// Function to get emoji based on cookware name
+function getCookwareEmoji(name: string): string {
+  const lowerName = (name || "").toLowerCase();
+  
+  // Check for matches
+  if (lowerName.includes('bowl')) return '🥣';
+  if (lowerName.includes('oven')) return '♨️';
+  if (lowerName.includes('pan') || lowerName.includes('skillet')) return '🍳';
+  if (lowerName.includes('pot')) return '🍲';
+  if (lowerName.includes('dish') || lowerName.includes('baking')) return '🥘';
+  if (lowerName.includes('sheet')) return '🍪';
+  if (lowerName.includes('grill')) return '🔥';
+  if (lowerName.includes('blender')) return '🥤';
+  if (lowerName.includes('mixer')) return '🎛️';
+  if (lowerName.includes('knife')) return '🔪';
+  if (lowerName.includes('cutting board') || lowerName.includes('board')) return '🔪';
+  if (lowerName.includes('spoon') || lowerName.includes('spatula') || lowerName.includes('whisk')) return '🥄';
+  if (lowerName.includes('colander') || lowerName.includes('strainer')) return '🥣';
+  if (lowerName.includes('plate')) return '🍽️';
+  if (lowerName.includes('fork')) return '🍴';
+  if (lowerName.includes('wok')) return '🥘';
+  if (lowerName.includes('microwave')) return '📻';
+  if (lowerName.includes('toaster')) return '🍞';
+  if (lowerName.includes('grate') || lowerName.includes('grater')) return '🧀';
+  if (lowerName.includes('peeler')) return '🥔';
+  if (lowerName.includes('rolling pin')) return '🥖';
+  if (lowerName.includes('jar') || lowerName.includes('container')) return '🫙';
+  if (lowerName.includes('bottle')) return '🍾';
+  if (lowerName.includes('scale')) return '⚖️';
+  if (lowerName.includes('thermometer')) return '🌡️';
+  if (lowerName.includes('timer')) return '⏱️';
+  
+  // Barware
+  if (lowerName.includes('shaker')) return '🍸';
+  if (lowerName.includes('coupe')) return '🥂';
+  if (lowerName.includes('glass')) return '🥃';
+  if (lowerName.includes('cup') && !lowerName.includes('measuring')) return '☕';
+  if (lowerName.includes('measuring') || lowerName.includes('cup')) return '🥤';
+  
+  // Default
+  return '🍳';
+}
+---
+
+{cookware && cookware.length > 0 && (
+  <ul class="cookware-list">
+    {cookware.map((item: any, idx: number) => {
+      const name = item.name || item;
+      const emoji = getCookwareEmoji(name);
+      
+      return (
+        <li class="cookware-item">
+          <input type="checkbox" class="cookware-checkbox" id={`cookware-${idx}`} />
+          <label for={`cookware-${idx}`} class="cookware-content">
+            <span class="cookware-icon">{emoji}</span>
+            <span class="cookware-name">{name}</span>
+          </label>
+        </li>
+      );
+    })}
+  </ul>
+)}
+
+<style>
+  .cookware-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .cookware-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+    transition: opacity 0.3s;
+  }
+
+  .cookware-item:last-child {
+    border-bottom: none;
+  }
+
+  .cookware-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .cookware-checkbox:checked ~ .cookware-content {
+    opacity: 0.4;
+    text-decoration: line-through;
+  }
+
+  .cookware-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    cursor: pointer;
+  }
+
+  .cookware-icon {
+    font-size: 1.2rem;
+  }
+
+  .cookware-name {
+    color: var(--text);
+    font-weight: 500;
+  }
+</style>

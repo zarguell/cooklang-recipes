@@ -1,0 +1,152 @@
+---
+const { recipe } = Astro.props;
+
+const title = recipe.parsed.metadata.title || recipe.slug;
+const description = recipe.parsed.metadata.description || "";
+const tags = recipe.parsed.metadata.tags || [];
+const imageUrl = recipe.parsed.metadata.image?.replace(/^["']|["']$/g, '') || null;
+
+
+// Get time info
+const prepTime = recipe.parsed.metadata["prep-time"];
+const cookTime = recipe.parsed.metadata["cook-time"];
+const totalTime = recipe.parsed.metadata["total-time"];
+const servings = recipe.parsed.metadata.servings;
+
+---
+
+<a 
+  href={`${import.meta.env.BASE_URL}recipes/${recipe.slug}/`} 
+  class="recipe-card"
+  data-title={title.toLowerCase()}
+  data-description={description.toLowerCase()}
+  data-tags={tags.join(',').toLowerCase()}
+>
+  <div class="recipe-image">
+    {imageUrl ? (
+      <img
+        src={imageUrl}
+        alt={title}
+        loading="lazy"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+      />
+    ) : null}
+    <div class="image-fallback" style={imageUrl ? "display: none;" : "display: flex;"}>
+      <span class="fallback-icon">🍳</span>
+      <span class="fallback-text">No Image</span>
+    </div>
+  </div>
+  <div class="recipe-info">
+    <h3>{title}</h3>
+    {description && (
+      <p class="description">{description}</p>
+    )}
+    <div class="recipe-stats">
+      {servings && (
+        <span class="stat">👥 {servings}</span>
+      )}
+      {totalTime && (
+        <span class="stat">⏱️ {totalTime}</span>
+      )}
+      {!totalTime && (prepTime || cookTime) && (
+        <>
+          {prepTime && (
+            <span class="stat">🔪 {prepTime}</span>
+          )}
+          {cookTime && (
+            <span class="stat">🔥 {cookTime}</span>
+          )}
+        </>
+      )}
+    </div>
+  </div>
+</a>
+
+<style>
+  .recipe-card {
+    display: block;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .recipe-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .recipe-image {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+  }
+
+  .recipe-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .recipe-info {
+    padding: 1.5rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+  }
+
+  .description {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin: 0.5rem 0 1rem 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .recipe-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  .stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  /* Image fallback styling */
+  .image-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    gap: 0.5rem;
+  }
+
+  .fallback-icon {
+    font-size: 2rem;
+    opacity: 0.6;
+  }
+
+  .fallback-text {
+    font-size: 0.9rem;
+    color: var(--muted);
+    font-family: system-ui, sans-serif;
+  }
+
+</style>

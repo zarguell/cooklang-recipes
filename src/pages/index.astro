@@ -1,0 +1,218 @@
+---
+import { readdir } from "fs/promises";
+import { resolve } from "path";
+import { readFileSync } from "fs";
+import { Recipe } from "@tmlmt/cooklang-parser";
+import yaml from "js-yaml";
+import RecipeCard from "../components/RecipeCard.astro";
+import ThemeToggle from "../components/ThemeToggle.astro";
+import ViewControls from "../components/ViewControls.astro";
+import Layout from "../layouts/Layout.astro";
+
+const recipesDir = resolve("recipes");
+const files = await readdir(recipesDir);
+const cookFiles = files.filter((f) => f.endsWith(".cook"));
+
+const recipes = cookFiles.map((file) => {
+  const slug = file.replace(".cook", "");
+  const filePath = resolve(recipesDir, file);
+  const content = readFileSync(filePath, "utf-8");
+
+  // Extract YAML frontmatter
+  let frontmatter = {};
+  let recipeContent = content;
+
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (frontmatterMatch) {
+    try {
+      frontmatter = yaml.load(frontmatterMatch[1]) || {};
+      recipeContent = frontmatterMatch[2];
+    } catch (e) {
+      console.error(`Error parsing YAML in ${file}:`, e);
+    }
+  }
+
+  let parsed;
+  try {
+    parsed = new Recipe(recipeContent);
+    // Merge frontmatter with parsed metadata - frontmatter takes priority
+    parsed.metadata = { ...parsed.metadata, ...frontmatter };
+  } catch (error) {
+    console.error(`Error parsing ${file}:`, error);
+    parsed = { metadata: frontmatter, ingredients: [], sections: [] };
+  }
+
+  return { slug, file, parsed };
+});
+
+// Sort by title
+recipes.sort((a, b) => {
+  const titleA = a.parsed.metadata.title || a.slug;
+  const titleB = b.parsed.metadata.title || b.slug;
+  return titleA.localeCompare(titleB);
+});
+---
+
+<Layout title="My Recipes">
+  <Fragment slot="theme-toggle">
+    <ThemeToggle />
+  </Fragment>
+
+  <header class="page-header">
+    <h1>🍳 My Recipes</h1>
+    <div class="header-controls">
+      <div class="header-buttons">
+        <a href={`${import.meta.env.BASE_URL}shopping-list/`} class="button primary">
+          🛒 Shopping List
+        </a>
+        <a href={`${import.meta.env.BASE_URL}tags/`} class="button secondary">
+          🏷️ Browse Tags
+        </a>
+        <a href={`${import.meta.env.BASE_URL}rss.xml`} class="button" target="_blank">
+          📡 RSS Feed
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <input
+    type="search"
+    class="search-box"
+    id="searchBox"
+    placeholder="Search recipes..."
+    autocomplete="off"
+  />
+
+  <ViewControls />
+
+  <div class="recipe-grid view-grid" id="recipeGrid">
+    {recipes.map((recipe) => <RecipeCard recipe={recipe} />)}
+  </div>
+
+  <div class="no-results" id="noResults">
+    No recipes found. Try a different search.
+  </div>
+
+  <Fragment slot="scripts">
+    <script is:inline>
+      document.addEventListener('DOMContentLoaded', function() {
+        const searchBox = document.getElementById('searchBox');
+        const noResults = document.getElementById('noResults');
+        const recipeCards = document.querySelectorAll('.recipe-card');
+
+        if (!searchBox || !noResults || recipeCards.length === 0) {
+          return;
+        }
+
+        searchBox.addEventListener('input', function(e) {
+          const search = e.target.value.toLowerCase().trim();
+          let visibleCount = 0;
+
+          recipeCards.forEach(function(card) {
+            if (search === '') {
+              card.classList.remove('hidden');
+              visibleCount++;
+              return;
+            }
+
+            const title = (card.dataset.title || '').toLowerCase();
+            const description = (card.dataset.description || '').toLowerCase();
+            const tags = (card.dataset.tags || '').toLowerCase();
+
+            const matches =
+              title.includes(search) ||
+              description.includes(search) ||
+              tags.includes(search);
+
+            if (matches) {
+              card.classList.remove('hidden');
+              visibleCount++;
+            } else {
+              card.classList.add('hidden');
+            }
+          });
+
+          if (visibleCount === 0) {
+            noResults.classList.add('show');
+          } else {
+            noResults.classList.remove('show');
+          }
+        });
+      });
+
+      // Initialize view controls after DOM is ready
+      (function() {
+        const viewButtons = document.querySelectorAll('[data-view]');
+        const recipeGrid = document.getElementById('recipeGrid');
+
+        if (!viewButtons.length || !recipeGrid) return;
+
+        function setView(viewType) {
+          // Update button states
+          viewButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === viewType);
+          });
+
+          // Update grid class
+          recipeGrid.className = recipeGrid.className.replace(/view-\w+/g, '');
+          recipeGrid.classList.add(`view-${viewType}`);
+
+          // Save preference
+          localStorage.setItem('recipe-view-preference', viewType);
+        }
+
+        // Load saved preference
+        const savedView = localStorage.getItem('recipe-view-preference') || 'grid';
+        setView(savedView);
+
+        // Handle button clicks
+        viewButtons.forEach(button => {
+          button.addEventListener('click', () => {
+            setView(button.dataset.view);
+          });
+        });
+      })();
+    </script>
+  </Fragment>
+</Layout>
+
+<style>
+
+  .search-box {
+    width: 100%;
+    max-width: 400px;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+
+  .search-box:focus {
+    outline: none;
+    border-color: var(--input-focus);
+  }
+
+  .search-box::placeholder {
+    color: var(--muted);
+  }
+
+  :global(.recipe-card.hidden) {
+    display: none !important;
+  }
+
+  .no-results {
+    text-align: center;
+    color: var(--muted);
+    padding: 3rem;
+    font-size: 1.1rem;
+    display: none;
+  }
+
+  .no-results.show {
+    display: block;
+  }
+</style>
