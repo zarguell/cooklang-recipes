@@ -61,6 +61,8 @@ const baseUrl = import.meta.env.BASE_URL;
     <script is:inline type="module">
       import { FoodClassifier } from '../../utils/food-classifier.js';
       import { parseQuantityAndUnit, toCanonical, convertToDisplayUnit, formatQuantity } from '../../utils/unit-converter.js';
+      import { aggregateIngredients as aggregateIngredientsUtil } from '../../utils/shopping-list-aggregator.js';
+      import { updateEmptyState, updateStats, buildRecipeList, buildIngredientList } from '../../utils/shopping-list-renderer.js';
 
       class ShoppingListUI {
         constructor() {
@@ -68,166 +70,20 @@ const baseUrl = import.meta.env.BASE_URL;
           this.init();
         }
 
-        // Helper function to normalize ingredient name
-        normalizeName(name) {
-          return this.classifier.normalizeIngredient(name);
-        }
-
-        aggregateIngredients() {
-          const aggregated = {};
-
-          window.shoppingList.list.recipes.forEach(recipe => {
-            recipe.ingredients.forEach(ingredient => {
-              if (!ingredient.name) return;
-
-              const normalizedName = this.normalizeName(ingredient.name);
-              const { qty, unit } = parseQuantityAndUnit(ingredient);
-
-              let key, dimension, canonicalQty;
-
-              if (qty !== null && unit !== null) {
-                const canonical = toCanonical(qty, unit);
-                if (canonical) {
-                  // Convertible unit
-                  dimension = canonical.dimension;
-                  canonicalQty = canonical.canonicalQty;
-                  key = `${normalizedName}__${dimension}`;
-                } else {
-                  // Unknown unit - treat as none
-                  dimension = 'none';
-                  canonicalQty = null;
-                  key = `${normalizedName}__none`;
-                }
-              } else {
-                // No quantity or unit - treat as none
-                dimension = 'none';
-                canonicalQty = null;
-                key = `${normalizedName}__none`;
-              }
-
-              if (!aggregated[key]) {
-                aggregated[key] = {
-                  name: ingredient.name,
-                  normalizedName: normalizedName,
-                  dimension: dimension,
-                  canonicalQty: 0,
-                  originalUnit: unit || '',
-                  hasQuantity: qty !== null && unit !== null
-                };
-              }
-
-              // Only sum if we have a convertible quantity
-              if (canonicalQty !== null) {
-                aggregated[key].canonicalQty += canonicalQty;
-                aggregated[key].hasQuantity = true;
-              }
-            });
-          });
-
-          // Convert canonical quantities back to display units
-          return Object.values(aggregated).map(item => {
-            if (item.hasQuantity && item.dimension !== 'none') {
-              const display = convertToDisplayUnit(item.canonicalQty, item.dimension);
-              return {
-                name: item.name,
-                unit: display.unit,
-                baseQuantity: display.qty
-              };
-            } else {
-              return {
-                name: item.name,
-                unit: item.originalUnit || '',
-                baseQuantity: item.hasQuantity ? item.canonicalQty : null
-              };
-            }
-          });
-        }
-
         render() {
-          const emptyState = document.getElementById('empty-state');
-          const content = document.getElementById('shopping-list-content');
-          const recipesList = document.getElementById('recipes-list');
-          const aggregatedIngredients = document.getElementById('aggregated-ingredients');
-          const listStats = document.getElementById('listStats');
+          const isEmpty = !window.shoppingList || !window.shoppingList.list.recipes.length;
 
-          if (!window.shoppingList || !window.shoppingList.list.recipes.length) {
-            emptyState.style.display = 'block';
-            content.style.display = 'none';
+          if (isEmpty) {
+            updateEmptyState(true);
             return;
           }
 
-          emptyState.style.display = 'none';
-          content.style.display = 'block';
+          updateEmptyState(false);
+          updateStats(window.shoppingList.list.recipes);
+          buildRecipeList(window.shoppingList.list.recipes);
 
-          // Update stats
-          const totalIngredients = window.shoppingList.list.recipes.reduce((sum, recipe) =>
-            sum + (recipe.ingredients ? recipe.ingredients.length : 0), 0);
-          listStats.textContent = `${window.shoppingList.list.recipes.length} recipe${window.shoppingList.list.recipes.length !== 1 ? 's' : ''}, ${totalIngredients} ingredient${totalIngredients !== 1 ? 's' : ''}`;
-
-          // Render recipes list
-          recipesList.innerHTML = '';
-          window.shoppingList.list.recipes.forEach(recipe => {
-            const recipeItem = document.createElement('div');
-            recipeItem.className = 'recipe-item';
-            recipeItem.innerHTML = `
-              <span class="recipe-title">${recipe.title}</span>
-              <button type="button" class="remove-recipe" data-slug="${recipe.slug}" title="Remove recipe">×</button>
-            `;
-            recipesList.appendChild(recipeItem);
-          });
-
-          // Render aggregated ingredients with checkboxes, grouped by category
-          const aggregated = this.aggregateIngredients();
-          aggregatedIngredients.innerHTML = '';
-
-          if (aggregated.length === 0) {
-            aggregatedIngredients.innerHTML = '<p class="no-ingredients">No ingredients to show</p>';
-          } else {
-            // Sort by name first
-            aggregated.sort((a, b) => a.name.localeCompare(b.name));
-
-            // Group by category
-            const grouped = this.classifier.groupIngredientsByCategory(aggregated);
-            let ingredientIndex = 0;
-
-            // Render each category
-            Object.keys(grouped).forEach(category => {
-              const categorySection = document.createElement('div');
-              categorySection.className = 'category-section';
-
-              const categoryHeader = document.createElement('h4');
-              categoryHeader.className = 'category-header';
-              categoryHeader.textContent = category;
-              categorySection.appendChild(categoryHeader);
-
-              const categoryList = document.createElement('div');
-              categoryList.className = 'category-ingredients';
-
-              grouped[category].forEach(ingredient => {
-                const ingredientDiv = document.createElement('div');
-                ingredientDiv.className = 'aggregated-item';
-
-                const quantityText = ingredient.baseQuantity > 0
-                  ? `${formatQuantity(ingredient.baseQuantity)}${ingredient.unit ? ' ' + ingredient.unit : ''} `
-                  : '';
-
-                ingredientDiv.innerHTML = `
-                  <div class="ingredient-main">
-                    <input type="checkbox" id="ingredient-${ingredientIndex}" class="ingredient-checkbox">
-                    <label for="ingredient-${ingredientIndex}" class="ingredient-label">
-                      <span class="ingredient-quantity">${quantityText}</span>
-                      <span class="ingredient-name">${ingredient.name}</span>
-                    </label>
-                  </div>
-                `;
-                categoryList.appendChild(ingredientDiv);
-                ingredientIndex++;
-              });
-
-              categorySection.appendChild(categoryList);
-              aggregatedIngredients.appendChild(categorySection);
-            });
-          }
+          const aggregated = aggregateIngredientsUtil(window.shoppingList.list.recipes);
+          buildIngredientList(aggregated, this.classifier);
         }
 
         init() {
