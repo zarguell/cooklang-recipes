@@ -69,11 +69,23 @@ export function getStepText(
 
   return items
     .map((item) => {
-      if (item.type === "text") return item.value;
-      if (item.type === "ingredient") return item.displayName || item.name || "";
+      if (!item) return "";
+
+      if (item.type === "text") {
+        const value = item?.value;
+        if (Array.isArray(value)) return value.join(" ");
+        return value || "";
+      }
+
+      if (item.type === "ingredient") {
+        return item.displayName || item.name || "";
+      }
 
       if (item.type === "cookware") {
         const cookwareItem = cookwareList[item.value];
+        if (Array.isArray(cookwareItem)) {
+          return cookwareItem[0]?.name || "cookware";
+        }
         return cookwareItem?.name || "cookware";
       }
 
