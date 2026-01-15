@@ -272,27 +272,12 @@ const jsonLd = {
   <Fragment slot="scripts">
     <script type="module">
       import { formatQty } from '../../utils/quantity-formatter.js';
+      import { applyScale } from '../../utils/recipe-scaler.js';
 
       const controls = document.querySelector("[data-recipe-controls]");
       if (controls) {
         const printBtn = document.getElementById("recipePrintBtn");
         const scaleInput = document.getElementById("recipeScaleInput");
-
-        function applyScale(mult) {
-          const ingredientRoot = document.getElementById("ingredientList");
-          if (!ingredientRoot) return;
-
-          const els = ingredientRoot.querySelectorAll('[data-role="qty"]');
-          els.forEach((el) => {
-            const rawBase = el.getAttribute("data-base");
-            const unit = el.getAttribute("data-unit") || "";
-            const base = rawBase ? Number(rawBase) : NaN;
-            if (!Number.isFinite(base)) return;
-
-            const scaled = base * mult;
-            el.textContent = `${formatQty(scaled)}${unit ? ` ${unit}` : ""}`;
-          });
-        }
 
         if (printBtn) printBtn.addEventListener("click", () => window.print());
 
