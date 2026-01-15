@@ -48,33 +48,38 @@ export interface FrontmatterResult {
  * Converts each item type to its human-readable text representation.
  *
  * @param items - Array of step items from Cooklang parser
- * @param cookwareList - Map of cookware items
- * @param timersList - Map of timer items
+ * @param cookwareList - Array of cookware items indexed by numeric position
+ * @param timersList - Array of timer items indexed by numeric position
  * @returns Text representation of the step
  *
  * @example
  * getStepText(
  *   [{ type: 'text', value: 'Heat oil' }],
- *   { 'pan': { name: 'Frying pan' } },
- *   { 'timer1': { duration: { value: { value: 5 } }, unit: 'minutes' } }
+ *   [{ name: 'Frying pan' }],
+ *   [{ duration: { value: { value: 5 } }, unit: 'minutes' }]
  * )
  * // Returns: "Heat oil 5 minutes"
  */
 export function getStepText(
   items: StepItem[],
-  cookwareList: Record<string, any>,
-  timersList: Record<string, any>
+  cookwareList: any[],
+  timersList: any[]
 ): string {
   if (!items || items.length === 0) return "";
+  if (!Array.isArray(cookwareList)) return "";
+  if (!Array.isArray(timersList)) return "";
 
   return items
-    .map((item) => {
+    .map((item, itemIndex) => {
       if (!item) return "";
 
       if (item.type === "text") {
         const value = item?.value;
-        if (Array.isArray(value)) return value.join(" ");
-        return value || "";
+        if (value == null) return "";
+        if (Array.isArray(value)) {
+          return value.filter(v => v != null).join(" ");
+        }
+        return String(value);
       }
 
       if (item.type === "ingredient") {
@@ -83,9 +88,6 @@ export function getStepText(
 
       if (item.type === "cookware") {
         const cookwareItem = cookwareList[item.value];
-        if (Array.isArray(cookwareItem)) {
-          return cookwareItem[0]?.name || "cookware";
-        }
         return cookwareItem?.name || "cookware";
       }
 
@@ -94,12 +96,13 @@ export function getStepText(
         if (!timerItem) return "timer";
 
         const quantity =
-          timerItem.duration?.value?.value ??
-          timerItem.duration?.value ??
-          timerItem.amount?.quantity?.value ??
-          timerItem.amount?.quantity ??
+          timerItem?.duration?.value?.value ??
+          timerItem?.duration?.value ??
+          timerItem?.duration ??
+          timerItem?.amount?.quantity?.value ??
+          timerItem?.amount?.quantity ??
           "";
-        const unit = timerItem.unit || "minutes";
+        const unit = timerItem?.unit || "minutes";
 
         return quantity ? `${quantity} ${unit}` : "timer";
       }
@@ -179,8 +182,8 @@ export function generateJsonLdSchema(
   source: string | undefined,
   ingredients: any[],
   steps: any[],
-  cookwareList: Record<string, any>,
-  timersList: Record<string, any>
+  cookwareList: any[],
+  timersList: any[]
 ): Record<string, any> {
   return {
     "@context": "https://schema.org/",
