@@ -6,11 +6,33 @@ import yaml from "js-yaml";
  * Parse a Cooklang recipe file with YAML frontmatter support.
  *
  * Extracts YAML frontmatter (if present) from the file, parses the Cooklang
- * recipe content, and merges the metadata (frontmatter takes priority).
+ * recipe content, and merges the metadata (frontmatter takes priority over
+ * parsed metadata).
  *
- * @param filePath - Full path to the recipe file
+ * Error Handling:
+ * - YAML parsing errors are logged to console but don't stop execution
+ * - Recipe parsing errors return a safe default object with metadata from frontmatter
+ * - All errors include the file name for debugging
+ *
+ * @param filePath - Full path to the recipe file (e.g., "/path/to/recipes/pasta.cook")
  * @param fileName - Name of the recipe file (e.g., "pasta.cook")
- * @returns Object containing slug and parsed recipe data
+ * @returns Object containing:
+ *   - `slug`: Recipe identifier without .cook extension
+ *   - `parsed`: Parsed Recipe object with metadata, ingredients, sections, etc.
+ *
+ * @example
+ * const result = parseRecipeFile("/recipes/pasta.cook", "pasta.cook");
+ * // Returns: { slug: "pasta", parsed: Recipe }
+ *
+ * @example
+ * // With YAML frontmatter:
+ * // ---
+ * // title: Pasta Carbonara
+ * // servings: 4
+ * // ---
+ * // Ingredients...
+ * const result = parseRecipeFile("/recipes/pasta.cook", "pasta.cook");
+ * // result.parsed.metadata.title === "Pasta Carbonara"
  */
 export function parseRecipeFile(
   filePath: string,
