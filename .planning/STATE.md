@@ -159,6 +159,7 @@ When resuming work on this project:
 Recent commits related to this project:
 
 ```
+3b67530 docs(05-05): complete Phase 5 and project documentation
 0422f0c docs(05-02): add comprehensive JSDoc to FoodClassifier
 29c817a docs(05-01): enhance JSDoc documentation for parse-recipe
 a355610 docs(04-05): complete Phase 4 documentation
