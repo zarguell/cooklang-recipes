@@ -214,8 +214,8 @@ const jsonLd = generateJsonLdSchema(
 
   <Fragment slot="scripts">
     <script type="module">
-      import { formatQty } from '../../utils/quantity-formatter.js';
-      import { applyScale } from '../../utils/recipe-scaler.js';
+      import { formatQty } from '/scripts/quantity-formatter.js';
+      import { applyScale } from '/scripts/recipe-scaler.js';
 
       const controls = document.querySelector("[data-recipe-controls]");
       if (controls) {
@@ -236,7 +236,7 @@ const jsonLd = generateJsonLdSchema(
         // Shopping list functionality
         const addToShoppingListBtn = document.getElementById("addToShoppingListBtn");
         if (addToShoppingListBtn) {
-          import('../../utils/recipe-shopping-list.js').then(module => {
+          import('/scripts/recipe-shopping-list.js').then(module => {
             const recipeSlug = addToShoppingListBtn.getAttribute('data-recipe-slug');
             const recipeTitle = addToShoppingListBtn.getAttribute('data-recipe-title');
 
