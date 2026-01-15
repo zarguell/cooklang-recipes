@@ -3,7 +3,6 @@ import { readdir } from "fs/promises";
 import { resolve } from "path";
 import { readFileSync } from "fs";
 import { Recipe } from "@tmlmt/cooklang-parser";
-import yaml from "js-yaml";
 import JsonLdSchema from "../../components/JsonLdSchema.astro";
 import IngredientList from "../../components/IngredientList.astro";
 import RecipeSteps from "../../components/RecipeSteps.astro";
@@ -11,6 +10,7 @@ import CookwareList from "../../components/CookwareList.astro";
 import CooklangSourceBlock from "../../components/CooklangSourceBlock.astro";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import Layout from "../../layouts/Layout.astro";
+import { parseFrontmatter, generateJsonLdSchema } from "../../utils/recipe-metadata";
 
 export async function getStaticPaths() {
   const recipesDir = resolve("recipes");
@@ -27,18 +27,7 @@ const recipePath = resolve("recipes", `${slug}.cook`);
 const content = readFileSync(recipePath, "utf-8");
 
 // Extract YAML frontmatter
-let frontmatter = {};
-let recipeContent = content;
-
-const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-if (frontmatterMatch) {
-  try {
-    frontmatter = yaml.load(frontmatterMatch[1]) || {};
-    recipeContent = frontmatterMatch[2];
-  } catch (e) {
-    console.error(`Error parsing YAML frontmatter in ${slug}:`, e);
-  }
-}
+const { frontmatter, recipeContent } = parseFrontmatter(content);
 
 let recipe;
 let parseError = null;
@@ -75,67 +64,21 @@ if (recipe.sections) {
   }
 }
 
-// Helper to extract text from step items for JSON-LD
-function getStepText(items: any[]) {
-  if (!items || items.length === 0) return "";
-
-  return items
-    .map((item) => {
-      if (item.type === "text") return item.value;
-      if (item.type === "ingredient") return item.displayName || item.name || "";
-
-      if (item.type === "cookware") {
-        const cookwareItem = cookwareList[item.value];
-        return cookwareItem?.name || "cookware";
-      }
-
-      if (item.type === "timer") {
-        const timerItem = timersList[item.value];
-        if (!timerItem) return "timer";
-        const quantity = timerItem.duration?.value?.value || "";
-        const unit = timerItem.unit || "minutes";
-        return `${quantity} ${unit}`;
-      }
-
-      return "";
-    })
-    .join("");
-}
-
 const imageUrl = recipe.metadata.image?.replace(/^["']|["']$/g, "") || null;
 const tags = recipe.metadata.tags || [];
 const source = recipe.metadata.source;
 
-
 // Generate JSON-LD schema
-const jsonLd = {
-  "@context": "https://schema.org/",
-  "@type": "Recipe",
-  name: recipe.metadata.title || slug,
-  description: recipe.metadata.description || "",
-  image: imageUrl,
-  prepTime: recipe.metadata["prep-time"] ? `PT${recipe.metadata["prep-time"]}` : null,
-  cookTime: recipe.metadata["cook-time"] ? `PT${recipe.metadata["cook-time"]}` : null,
-  totalTime: recipe.metadata["total-time"] ? `PT${recipe.metadata["total-time"]}` : null,
-  recipeYield: recipe.metadata.servings || null,
-  recipeCategory: recipe.metadata.category || null,
-  recipeCuisine: recipe.metadata.cuisine || null,
-  keywords: tags.join(", "),
-  author: { "@type": "Person", name: recipe.metadata.author || "Unknown" },
-  recipeIngredient: ingredients.map((ing) => {
-    let str = ing.name || "";
-    if (ing.quantity?.value?.value !== undefined) {
-      const qty = ing.quantity.value.value;
-      str = `${qty}${ing.unit ? ` ${ing.unit}` : ""} ${str}`;
-    }
-    return str;
-  }),
-  recipeInstructions: steps.map((step: any, idx: number) => ({
-    "@type": "HowToStep",
-    position: idx + 1,
-    text: getStepText(step.items || []),
-  })),
-};
+const jsonLd = generateJsonLdSchema(
+  recipe.metadata,
+  imageUrl,
+  tags,
+  source,
+  ingredients,
+  steps,
+  cookwareList,
+  timersList
+);
 ---
 
 <Layout title={recipe.metadata.title || slug} description={recipe.metadata.description} image={imageUrl}>
