@@ -185,10 +185,12 @@ export function generateJsonLdSchema(
       }
       return str;
     }),
-    recipeInstructions: steps.map((step: any, idx: number) => ({
-      "@type": "HowToStep",
-      position: idx + 1,
-      text: getStepText(step.items || []),
-    })),
+    recipeInstructions: steps
+      .filter((step) => step && step.items)
+      .map((step: any, idx: number) => ({
+        "@type": "HowToStep",
+        position: idx + 1,
+        text: getStepText(step.items || []),
+      })),
   };
 }
