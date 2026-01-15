@@ -1,9 +1,7 @@
 ---
 import { readdir } from "fs/promises";
 import { resolve } from "path";
-import { readFileSync } from "fs";
-import { Recipe } from "@tmlmt/cooklang-parser";
-import yaml from "js-yaml";
+import { parseRecipeFile } from "../../utils/parse-recipe";
 import RecipeCard from "../../components/RecipeCard.astro";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import ViewControls from "../../components/ViewControls.astro";
@@ -14,36 +12,8 @@ const files = await readdir(recipesDir);
 const cookFiles = files.filter((f) => f.endsWith(".cook"));
 
 const recipes = cookFiles.map((file) => {
-  const slug = file.replace(".cook", "");
   const filePath = resolve(recipesDir, file);
-  const content = readFileSync(filePath, "utf-8");
-
-  // Extract YAML frontmatter
-  let frontmatter = {};
-  let recipeContent = content;
-
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (frontmatterMatch) {
-    try {
-      frontmatter = yaml.load(frontmatterMatch[1]) || {};
-      recipeContent = frontmatterMatch[2];
-    } catch (e) {
-      console.error(`Error parsing YAML in ${file}:`, e);
-    }
-  }
-
-  let parsed;
-  try {
-    parsed = new Recipe(recipeContent);
-    // Merge frontmatter with parsed metadata - frontmatter takes priority
-    parsed.metadata = { ...parsed.metadata, ...frontmatter };
-
-  } catch (error) {
-    console.error(`Error parsing ${file}:`, error);
-    parsed = { metadata: frontmatter, ingredients: [], sections: [] };
-  }
-
-  return { slug, parsed };
+  return parseRecipeFile(filePath, file);
 });
 
 // Sort by title
