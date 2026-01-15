@@ -80,9 +80,16 @@ export function getStepText(
       if (item.type === "timer") {
         const timerItem = timersList[item.value];
         if (!timerItem) return "timer";
-        const quantity = timerItem.duration?.value?.value || "";
+
+        const quantity =
+          timerItem.duration?.value?.value ??
+          timerItem.duration?.value ??
+          timerItem.amount?.quantity?.value ??
+          timerItem.amount?.quantity ??
+          "";
         const unit = timerItem.unit || "minutes";
-        return `${quantity} ${unit}`;
+
+        return quantity ? `${quantity} ${unit}` : "timer";
       }
 
       return "";
