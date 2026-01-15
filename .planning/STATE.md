@@ -16,12 +16,12 @@
 
 ## Current Position
 
-**Phase**: 3 of 5
-**Phase Name**: Recipe Detail Component Extraction
+**Phase**: 4 of 5
+**Phase Name**: Code Organization
 **Status**: Not Started
-**Progress**: 64%
+**Progress**: 82%
 
-**Next Step**: Create detailed plan for Phase 3
+**Next Step**: Create detailed plan for Phase 4
 
 ---
 
@@ -53,6 +53,14 @@
 - Created 4 focused utility modules (538 total lines)
 - 4 plans completed, 7 commits
 
+**Phase 3: Recipe Detail Refactoring** (2026-01-15)
+- Created quantity-formatter.ts utility (103 lines)
+- Created recipe-scaler.ts utility (35 lines)
+- Created recipe-shopping-list.ts utility (181 lines)
+- Created recipe-metadata.ts utility (189 lines)
+- Reduced [slug].astro from 760 to 540 lines (29% reduction)
+- 4 plans completed, 9 commits
+
 ---
 
 ## Accumulated Context
@@ -73,6 +81,12 @@
 - **Phase 2 Plan 03**: Extracted renderer utility (shopping-list-renderer.ts) for DOM element creation
 - **Phase 2 Plan 03**: Simplified ShoppingListUI to orchestration-only role (430 lines from 909)
 - **Phase 2 Overall**: Utility extraction approach used instead of Astro components due to inline JavaScript patterns
+- **Phase 3 Plan 01**: Extracted fraction formatting logic (gcd, toNiceFraction, formatQty) into reusable utility
+- **Phase 3 Plan 02**: Extracted recipe scaling logic using DOM queries and element updates
+- **Phase 3 Plan 03**: Extracted shopping list integration (6 functions) with notification system
+- **Phase 3 Plan 04**: Extracted metadata parsing and JSON-LD schema generation utilities
+- **Phase 3 Overall**: Utility extraction approach effective for inline JavaScript pattern (29% reduction, 760→540 lines)
+- **Phase 3 Overall**: JSDoc comments added to all public API utilities for documentation
 
 ### Constraints Identified
 
@@ -85,8 +99,12 @@ None yet - constraints will be documented here as they emerge.
 - Import paths work correctly with relative paths (../utils/ vs ../../utils/)
 - Inline JavaScript in Astro pages works well with utility extraction, not just component extraction
 - 53% code reduction achievable with focused utility extraction (909→430 lines)
+- 29% code reduction in recipe detail page with 4 utility modules (760→540 lines)
 - Shopping list aggregation logic is complex and benefits from separate aggregator utility
 - DOM manipulation utilities can be extracted to make orchestration clearer
+- Fraction formatting with kitchen denominators requires specialized utility (2, 3, 4, 6, 8, 12, 16)
+- YAML frontmatter parsing and JSON-LD schema generation are extractable utilities
+- Dynamic imports useful for client-side utilities to avoid hydration issues
 
 ### Open Questions
 
@@ -101,8 +119,8 @@ When resuming work on this project:
 - [x] Read [PROJECT.md](./PROJECT.md) to understand requirements
 - [x] Read [ROADMAP.md](./ROADMAP.md) to see overall plan
 - [x] Read this [STATE.md](./STATE.md) to see current position
-- [x] Read the latest phase plan in `.planning/phases/0{X}-name/PLAN.md`
-- [ ] Read the latest phase state in `.planning/phases/0{X}-name/STATE.md`
+- [x] Read the latest phase plan in `.planning/phases/03-recipe-detail/PLAN.md`
+- [x] Read the latest phase summary in `.planning/phases/03-recipe-detail/03-recipe-detail-SUMMARY.md`
 - [ ] Use `/gsd:continue` to resume from current position
 
 ---
@@ -123,6 +141,11 @@ e0ce0b7 refactor(01-01): create shared recipe parsing utility
 3df28e8 refactor(01-01): update index.astro to use shared utility
 68f2045 refactor(01-01): update tags/index.astro to use shared utility
 c4c7a68 docs(01-01): complete Foundation plan
+f97f9dc refactor(03-03): use extracted shopping list utilities
+786379e refactor(03-03): extract shopping list integration utilities
+f03127d refactor(03-04): extract recipe metadata utilities
+21fee24 refactor(03-04): use extracted metadata utilities
+4da496e docs(03-04): complete Phase 3 metadata extraction
 15aea76 docs: codebase mapping complete (824 lines across 7 documents)
 da4ef6a docs: project initialized (PROJECT.md + config.json)
 ```
