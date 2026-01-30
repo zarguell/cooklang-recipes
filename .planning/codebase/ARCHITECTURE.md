@@ -1,135 +1,186 @@
 # Architecture
 
-**Analysis Date:** 2025-01-15
+**Analysis Date:** 2025-01-16
 
 ## Pattern Overview
 
-**Overall:** Static Site Generator (SSG) with component-based architecture
+**Overall:** Static Site Generator (SSG) with Component-Based Architecture
 
 **Key Characteristics:**
-- File-based routing with dynamic routes
-- Build-time content parsing and page generation
-- Client-side interactions for dynamic features (shopping lists, theme)
-- No server-side processing at runtime
+- File-based routing system with dynamic route generation
+- Server-side rendering at build time, client-side interactivity at runtime
+- Content-driven architecture around Cooklang recipe files
+- Zero backend API - fully static after build
+- Hybrid rendering: Build-time parsing + runtime client-side scripts
 
 ## Layers
 
-**Content Layer:**
-- Purpose: Source of truth for recipe data
-- Contains: CookLang recipe files (.cook format) with YAML frontmatter
-- Location: `recipes/` directory
-- Depends on: CookLang format specification
-- Used by: Build system (Astro) to generate pages
+**Content/Data Layer:**
+- Purpose: Recipe source files and static data
+- Contains: recipes/*.cook files, public/static/food-classification.json
+- Depends on: Cooklang recipe format
+- Used by: Build-time parsing utilities
 
-**Presentation Layer:**
-- Purpose: Route definitions and page rendering
-- Contains: Astro page components for different routes
-- Location: `src/pages/` directory
-- Depends on: Content layer (recipe data) and Component layer
-- Used by: Browser (serves pre-rendered HTML)
+**Parsing/Processing Layer:**
+- Purpose: Transform raw content into structured data
+- Contains: Recipe parsers, metadata extractors, classifiers, converters
+- Location: src/utils/ (parse-recipe.ts, recipe-metadata.ts, food-classifier.ts, unit-converter.ts, shopping-list-aggregator.ts, shopping-list-renderer.ts)
+- Depends on: Content layer, external parser (@tmlmt/cooklang-parser)
+- Used by: Pages and components
 
-**Component Layer:**
-- Purpose: Reusable UI elements and interactive features
-- Contains: Recipe cards, ingredient lists, theme toggle, view controls
-- Location: `src/components/` directory
-- Depends on: Props from pages, Astro framework
-- Used by: Presentation layer pages
+**Type Definition Layer:**
+- Purpose: Shared TypeScript interfaces and types
+- Contains: RecipeMetadata, StepItem, Fraction, RecipeIngredient
+- Location: src/types/recipe.ts, src/types/shopping-list.ts
+- Depends on: None (pure definitions)
+- Used by: Utilities, components, pages
+
+**Component/Presentation Layer:**
+- Purpose: Reusable UI components with scoped styles
+- Contains: RecipeCard, RecipeSteps, IngredientList, ThemeToggle, etc.
+- Location: src/components/*.astro
+- Depends on: Processing layer, type definitions
+- Used by: Pages and layouts
 
 **Layout Layer:**
-- Purpose: Global structure and shared functionality
-- Contains: Main layout with theme system, shopping list management
-- Location: `src/layouts/Layout.astro`
-- Depends on: Astro framework
-- Used by: All pages (wraps content)
+- Purpose: Base templates with global systems
+- Contains: Layout.astro (theme system, shopping list slot)
+- Location: src/layouts/*.astro
+- Depends on: Component layer
+- Used by: All pages
+
+**Page/Routing Layer:**
+- Purpose: Route handlers and page templates
+- Contains: index.astro, [slug].astro, [tag].astro, rss.xml.ts, shopping-list.astro
+- Location: src/pages/
+- Depends on: Layout, component, and processing layers
+- Used by: Astro routing system
+
+**Client-Side Script Layer:**
+- Purpose: Runtime interactivity (ES modules)
+- Contains: recipe-scaler.js, recipe-shopping-list.js, quantity-formatter.js, unit-converter.js, shopping-list-aggregator.js, shopping-list-renderer.js
+- Location: public/scripts/
+- Depends on: Browser APIs (localStorage, DOM)
+- Used by: Browser hydration on page load
 
 ## Data Flow
 
-**Build-Time Content Processing:**
+**Build-Time Flow:**
 
-1. Astro scans `recipes/` directory for .cook files
-2. Each file is parsed using @tmlmt/cooklang-parser
-3. YAML frontmatter is extracted and merged with parsed metadata
-4. Static pages are generated for each recipe (`recipes/[slug].astro`)
-5. Homepage and tag pages are built from aggregated recipe data
+1. Recipe discovery from recipes/ directory (src/pages/index.astro)
+2. Parse .cook files with Cooklang parser (src/utils/parse-recipe.ts)
+3. Extract YAML frontmatter and merge with parsed metadata
+4. Generate static pages for each recipe using getStaticPaths() (src/pages/recipes/[slug].astro)
+5. Generate JSON-LD schemas for SEO (src/utils/recipe-metadata.ts)
+6. Build RSS feed (src/pages/rss.xml.ts)
+7. Output static HTML to dist/ directory
 
-**Runtime Interactions:**
+**Runtime Flow:**
 
-1. Browser loads pre-rendered HTML/CSS/JS from `dist/`
-2. Client-side JavaScript handles user interactions (theme toggle, shopping list)
-3. Shopping list state persisted to localStorage
-4. No server-side processing occurs
+1. User requests page (e.g., /recipes/pasta/)
+2. Astro serves pre-rendered HTML from dist/
+3. Client-side scripts hydrate interactive features:
+   - Recipe scaling via public/scripts/recipe-scaler.js
+   - Shopping list management via public/scripts/recipe-shopping-list.js
+   - Theme switching via ThemeToggle.astro
+   - Search/filter via inline scripts in pages
+
+**Shopping List Flow:**
+
+1. User clicks "Add to Shopping List" on recipe page
+2. Client script stores recipe in localStorage (window.shoppingList)
+3. On shopping list page, ingredients aggregated by category
+4. FoodClassifier categorizes ingredients using food-classification.json (src/utils/food-classifier.ts)
+5. UnitConverter normalizes quantities for combining (src/utils/unit-converter.ts)
+6. ShoppingListRenderer renders grouped items (src/utils/shopping-list-renderer.ts)
 
 **State Management:**
-- Client-side localStorage for shopping lists and theme preferences
-- No server-side state or persistence
-- Each page is independent after load
+
+- localStorage for shopping list persistence (client-side only)
+- Theme persistence via localStorage (light/dark/system)
+- No server-side state or database
+- Each page load is independent (stateless server)
 
 ## Key Abstractions
 
-**Recipe Data Model:**
-- Purpose: Structured representation of recipe content
-- Examples: Parsed by @tmlmt/cooklang-parser in build step
-- Pattern: Object-oriented with ingredients, steps, cookware, timers
+**Recipe:**
+- Purpose: Parsed Cooklang recipe structure
+- Examples: src/pages/recipes/[slug].astro, src/utils/parse-recipe.ts
+- Pattern: Class from @tmlmt/cooklang-parser with metadata override
+- Properties: metadata (title, servings, prep-time), ingredients, sections, cookware, timers
 
-**Shopping List System:**
-- Purpose: Aggregate ingredients from multiple recipes with categorization
-- Examples: `src/pages/shopping-list.astro` contains ShoppingList class
-- Pattern: Client-side JavaScript class with localStorage persistence
+**FoodClassifier:**
+- Purpose: Categorize ingredients into grocery store sections
+- Examples: src/utils/food-classifier.ts
+- Pattern: Class with load, classify, group methods
+- Data: 15 categories from food-classification.json
 
-**Theme System:**
-- Purpose: Support light/dark/system theme modes
-- Examples: `src/components/ThemeToggle.astro`
-- Pattern: CSS variables with class-based theme switching
+**UnitConverter:**
+- Purpose: Normalize and convert between measurement units
+- Examples: src/utils/unit-converter.ts
+- Pattern: Pure functions (toCanonical, formatQuantity)
+- System: Canonical unit system (ml) for unified conversions
 
-**View Modes:**
-- Purpose: Display recipes in different layouts
-- Examples: Grid, Compact, List views in `src/pages/`
-- Pattern: CSS grid/flexbox with responsive classes
+**Component:**
+- Purpose: Reusable UI building blocks
+- Examples: RecipeCard.astro, RecipeSteps.astro, IngredientList.astro
+- Pattern: Astro component with frontmatter, template, scoped CSS
+- Props: Data passed via props interface
+
+**Service/Utility:**
+- Purpose: Pure functions for data transformation
+- Examples: parseRecipeFile, generateJsonLdSchema, aggregateIngredients
+- Pattern: Stateless functions with input/output
+- Location: src/utils/*.ts
 
 ## Entry Points
 
-**Development Entry:**
-- Location: `npm run dev` script in package.json
-- Triggers: User runs development server
-- Responsibilities: Start Astro dev server with hot reloading
-
 **Build Entry:**
-- Location: `npm run build` script in package.json
-- Triggers: User builds for production or CI/CD
-- Responsibilities: Parse recipes, generate static pages, optimize assets
+- Location: astro.config.mjs - Astro configuration
+- Location: package.json - Build scripts (dev, build, preview)
+- Triggers: npm run dev, npm run build
 
 **Application Entry Points:**
-- **Homepage**: `src/pages/index.astro` - Recipe grid with search
-- **Recipe Detail**: `src/pages/recipes/[slug].astro` - Individual recipe page
-- **Tag Browsing**: `src/pages/tags/index.astro`, `src/pages/tags/[tag].astro`
-- **Shopping List**: `src/pages/shopping-list.astro` - Ingredient aggregation
-- **RSS Feed**: `src/pages/rss.xml.ts` - Syndication endpoint
+- src/pages/index.astro - Homepage (recipe listing with search)
+- src/layouts/Layout.astro - Base layout with global theme system
+- src/pages/recipes/[slug].astro - Recipe detail pages (dynamic routing)
+- src/pages/rss.xml.ts - RSS feed endpoint (XML generation)
+
+**Script Entry Points:**
+- public/scripts/quantity-formatter.js - Quantity formatting utilities (gcd, toNiceFraction)
+- public/scripts/recipe-scaler.js - Scaling functionality
+- public/scripts/recipe-shopping-list.js - Shopping list management
+- public/scripts/unit-converter.js - Unit conversion utilities
 
 ## Error Handling
 
-**Strategy:** Console.error logging for debugging, no production error handling
+**Strategy:** Try-catch with console.error logging and safe defaults
 
 **Patterns:**
-- Try/catch blocks in recipe parsing (frontmatter, CookLang syntax)
-- Console.error for development debugging
-- No graceful error recovery (expected to work correctly or fail visibly)
+- Recipe parsing errors log to console and return empty recipe object (src/utils/parse-recipe.ts)
+- YAML parsing errors log but don't stop execution
+- Frontmatter extraction fails gracefully with empty object
+- No global error handler (each file handles its own errors)
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Console.log for normal output, console.error for errors
+- console.error for parsing failures with file name context
 - No structured logging framework
-- Debugging logs in development only
 
 **Validation:**
-- Recipe validation via parser errors
-- Frontmatter validation via YAML parsing
-- Client-side input validation for shopping list operations
+- Input validation at parse boundaries (file existence, YAML format)
+- No runtime validation framework (Zod, etc.)
 
 **Authentication:**
-- Not applicable (public site, no authentication)
+- Not applicable (public read-only site)
+
+**Theming:**
+- CSS variables for light/dark/system themes
+- Theme persistence in localStorage
+- Theme toggle slot in Layout.astro
 
 ---
 
-*Architecture analysis: 2025-01-15*
+*Architecture analysis: 2025-01-16*
 *Update when major patterns change*

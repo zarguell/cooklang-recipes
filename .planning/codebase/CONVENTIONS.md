@@ -1,127 +1,138 @@
 # Coding Conventions
 
-**Analysis Date:** 2025-01-15
+**Analysis Date:** 2025-01-16
 
 ## Naming Patterns
 
 **Files:**
-- .astro for all Astro components and pages (RecipeCard.astro, index.astro)
-- [slug].astro for dynamic routes (recipes/[slug].astro, tags/[tag].astro)
-- .cook for recipe content files
-- .ts for TypeScript configuration and utility files
-- .json for data files
+- TypeScript utilities: kebab-case.ts (parse-recipe.ts, food-classifier.ts, unit-converter.ts)
+- Astro components: PascalCase.astro (RecipeCard.astro, IngredientList.astro)
+- Astro layouts: PascalCase.astro (Layout.astro)
+- Astro pages: lowercase.astro or [bracket].astro (index.astro, [slug].astro, [tag].astro)
+- Type definitions: kebab-case.ts (recipe.ts, shopping-list.ts)
+- Client scripts: kebab-case.js (quantity-formatter.js, recipe-scaler.js)
 
 **Functions:**
-- camelCase for all JavaScript/TypeScript functions
-- handleEventName for event handlers (handleClick, handleSubmit)
+- camelCase for all functions
 - No special prefix for async functions
+- Examples: parseRecipeFile, generateJsonLdSchema, classifyIngredient, aggregateIngredients
 
 **Variables:**
-- camelCase for all variables (const recipes, const ingredients)
-- UPPER_SNAKE_CASE for constants (if present)
-- No underscore prefix for private members
+- camelCase for variables
+- No underscore prefix for private members (TypeScript private keyword used instead)
+- Constants: camelCase for exported constants (conversions, unitAliases)
 
 **Types:**
-- PascalCase for interfaces (Props interface in components)
-- PascalCase for type aliases
-- No I prefix for interfaces (not using IUser, IProps)
+- Interfaces: PascalCase, no I prefix (RecipeMetadata, StepItem, Fraction)
+- Type aliases: PascalCase (RecipeIngredient, FrontmatterResult)
+- Enums: Not used in this codebase
 
 ## Code Style
 
 **Formatting:**
-- No Prettier configuration detected
-- 2-space indentation (consistent across all files)
-- Single quotes for JavaScript/TypeScript strings
-- Double quotes for HTML attributes
-- Semicolons used in JavaScript/TypeScript
-- No enforced line length limit
+- 2-space indentation (no tabs)
+- Single quotes for string literals
+- No trailing semicolons (JavaScript/TypeScript files)
+- K&R brace style (opening brace on same line)
+- No strict line length limit (but generally < 120 chars)
+- Template literals for multi-line strings and interpolation
 
 **Linting:**
-- No ESLint configuration detected
-- No automated linting tools configured
-- Manual formatting consistency maintained
+- No ESLint/Prettier config files detected
+- Conventions inferred from existing code patterns
 
 ## Import Organization
 
 **Order:**
-1. Astro imports (import { getCollection } from 'astro:content')
-2. External packages (import grayMatter from 'gray-matter')
-3. Internal modules (import Component from '../components/Component.astro')
-4. Type imports (import type { Props } from './types')
+1. Node.js built-ins (fs, path)
+2. Third-party packages (astro components, external libraries)
+3. Internal modules (src/utils/, src/components/)
+4. Type imports (import type {...})
 
 **Grouping:**
 - Blank line between import groups
-- No strict alphabetical ordering within groups
+- No explicit alphabetical sorting
 
 **Path Aliases:**
-- @/ not used (relative imports only: ../components/, ../layouts/)
+- @/ not configured
+- Relative imports used: ../utils/, ../../types/
 
 ## Error Handling
 
 **Patterns:**
-- try/catch blocks in recipe parsing
-- console.error for error logging during development
-- No graceful error recovery for production
+- Try-catch blocks with console.error logging
+- Safe default return values on error (empty objects, arrays)
+- Error context included in logs (file name, error details)
 
 **Error Types:**
-- Throw on recipe parsing failures
-- Log errors with console.error
-- No custom error classes defined
-- No error boundary components
+- Throw on invalid input or missing dependencies
+- Log parsing errors but continue execution (fail gracefully)
+- No custom error classes (built-in Error only)
+
+**Logging:**
+- console.error for failures
+- Include file name or context in error message
 
 ## Logging
 
 **Framework:**
-- console.log for normal output
-- console.error for errors
-- No structured logging framework (pino, winston)
+- console.log, console.error (no structured logging)
 
 **Patterns:**
-- Console logging for debugging
-- Error logging on build failures or parsing errors
-- No structured logging with context objects
-- No logging at service boundaries
+- Log at service boundaries (parsing failures)
+- Include context (file name, error object)
+- No log levels (info, warn, debug) - just log and error
 
 ## Comments
 
 **When to Comment:**
-- HTML comments for markup sections (<!-- Section -->)
-- JavaScript comments for complex logic (// Comment)
-- Limited inline documentation
+- Explain why, not what
+- Document business logic and algorithms
+- Add JSDoc for public API functions
+- Include inline comments for complex logic
 
 **JSDoc/TSDoc:**
-- Not used - No JSDoc comments on functions
-- Props defined via TypeScript interfaces instead
+- Required for public API functions
+- Use @param, @returns, @example tags
+- File-level documentation blocks in utility files
 
 **TODO Comments:**
-- Not detected - No TODO/FIXME comments found
+- Not used (no TODO/FIXME comments found in codebase)
 
 ## Function Design
 
 **Size:**
-- No strict size limit enforced
-- Large functions present (shopping-list.astro: 909 lines)
-- Some functions should be extracted to smaller units
+- Keep under 50 lines when possible
+- Extract helpers for complex logic
 
 **Parameters:**
-- Object parameters for multiple values (props objects)
-- Destructuring in parameter lists common
+- Descriptive parameter names
+- Destructure objects in parameter list
+- No strict parameter limit
 
 **Return Values:**
 - Explicit return statements
-- No implicit undefined returns
+- Return early for guard clauses
+- Consistent return types
 
 ## Module Design
 
 **Exports:**
+- Named exports preferred for utilities (export function, export const)
 - Default exports for Astro components
-- Named exports for utilities (rare)
+- Export types from src/types/ for reuse
 
 **Barrel Files:**
-- No barrel files (index.ts) for component exports
-- Direct imports from component files
+- index.ts not used (direct imports preferred)
+- Avoid circular dependencies
+
+**Component Structure (Astro):**
+- Frontmatter fence (---) for server-side code
+- Template section for HTML
+- Style tag for scoped CSS
+- Script tag for client-side JavaScript
 
 ---
 
-*Convention analysis: 2025-01-15*
+*Convention analysis: 2025-01-16*
 *Update when patterns change*

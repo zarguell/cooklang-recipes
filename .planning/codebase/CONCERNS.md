@@ -1,121 +1,159 @@
 # Codebase Concerns
 
-**Analysis Date:** 2025-01-15
+**Analysis Date:** 2025-01-16
 
 ## Tech Debt
 
-**Large Files - Multiple Responsibilities:**
-- Issue: `src/pages/shopping-list.astro` (909 lines) and `src/pages/recipes/[slug].astro` (760 lines) are excessively large
-- Why: All functionality kept in single files during development
-- Impact: Difficult to maintain, hard to understand, violates single responsibility principle
-- Fix approach: Extract shopping list logic to separate component/module, split recipe detail page into smaller components
+**Duplicate fraction formatting logic (4 copies):**
+- Issue: gcd(), toNiceFraction(), formatQty() duplicated in multiple files
+- Files: src/components/RecipeSteps.astro, src/components/IngredientList.astro, src/utils/unit-converter.ts, public/scripts/quantity-formatter.js
+- Why: Incremental development without consolidation
+- Impact: Maintenance nightmare, inconsistencies likely
+- Fix approach: Extract to shared utility module (src/utils/fraction-formatter.ts), import everywhere
 
-**Missing Test Framework:**
-- Issue: No testing framework configured (no Jest, Vitest, Playwright)
-- Why: Development focused on functionality, not test infrastructure
-- Impact: No automated testing, all testing must be manual
-- Fix approach: Add Vitest for unit tests, Playwright for E2E tests
-
-**No Linting/Formatting Tools:**
-- Issue: No ESLint or Prettier configuration
-- Why: Manual formatting during development
-- Impact: Code style consistency relies on manual discipline, no automated enforcement
-- Fix approach: Add ESLint with TypeScript rules, add Prettier for formatting
+**Widespread TypeScript any usage (23 instances):**
+- Issue: Missing type definitions for Cooklang parser output
+- Files: src/types/recipe.ts, src/utils/unit-converter.ts, src/utils/food-classifier.ts, src/utils/parse-recipe.ts, src/utils/recipe-metadata.ts, src/utils/shopping-list-aggregator.ts, src/utils/shopping-list-renderer.ts
+- Why: Cooklang parser library lacks proper TypeScript types
+- Impact: No compile-time safety, poor IDE support, runtime errors
+- Fix approach: Define proper interfaces for Cooklang parser output
 
 ## Known Bugs
 
-**No known bugs reported** - No TODO/FIXME/HACK comments found indicating known issues
+**XSS vulnerability in shopping list renderer:**
+- Symptoms: Recipe titles and ingredient names could contain malicious scripts
+- Trigger: User creates recipe with <script> tags in title/ingredients
+- File: src/utils/shopping-list-renderer.ts (lines 34-44, 49-54, 81-89)
+- Root cause: Direct use of innerHTML with user-controlled data
+- Fix approach: Use textContent or sanitize with DOMPurify
+- Severity: HIGH
+
+**Unsafe localStorage usage without validation:**
+- Symptoms: Application crashes on malformed JSON in localStorage
+- Trigger: Corrupted localStorage data or manual tampering
+- Files: src/layouts/Layout.astro (line 324), src/components/ThemeToggle.astro (line 21)
+- Root cause: JSON.parse() without try/catch
+- Workaround: None (crashes app)
+- Fix approach: Wrap in try/catch and validate data structure
+- Severity: MEDIUM
+
+**Polling loop for async data loading:**
+- Symptoms: Wastes CPU cycles, delays UI render
+- Trigger: Shopping list page waits for classification data
+- File: src/pages/shopping-list.astro (lines 91-104)
+- Root cause: setTimeout polling loop instead of Promise-based async
+- Workaround: None (performance degradation)
+- Fix approach: Use Promise-based async/await or event emitter
+- Severity: MEDIUM
 
 ## Security Considerations
 
-**innerHTML Usage - XSS Risk:**
-- Risk: Multiple innerHTML assignments in `src/pages/shopping-list.astro` (lines 503, 507, 516, 519, 549)
-- Current mitigation: None (direct innerHTML without sanitization)
-- Recommendations: Use textContent or sanitize HTML content with DOMPurify
-- Location: `src/pages/shopping-list.astro`
+**XSS in innerHTML usage:**
+- Risk: User can inject malicious scripts via recipe titles/ingredients
+- File: src/utils/shopping-list-renderer.ts
+- Current mitigation: None
+- Recommendations: Use textContent or DOMPurify sanitizer
 
-**Inline JavaScript in Attributes:**
-- Risk: `onerror` attribute with inline JavaScript in `src/components/RecipeCard.astro` (line 31)
-- Current mitigation: None (inline JS in HTML attributes)
-- Recommendations: Use event listeners in script tags instead of inline attributes
-- Location: `src/components/RecipeCard.astro`
+**Unsafe JSON.parse:**
+- Risk: Malformed localStorage data crashes application
+- Files: src/layouts/Layout.astro, src/components/ThemeToggle.astro
+- Current mitigation: None
+- Recommendations: Wrap in try/catch with validation
 
-**No Content Security Policy:**
-- Risk: No CSP headers defined
-- Current mitigation: Static site on GitHub Pages (limited risk)
-- Recommendations: Add CSP headers via GitHub Pages configuration
+**Global window namespace pollution:**
+- Risk: Namespace collisions, harder to maintain
+- Files: src/layouts/Layout.astro (window.shoppingList, window.BASE_URL), src/pages/shopping-list.astro
+- Current mitigation: None
+- Recommendations: Use namespace object or ES modules
 
 ## Performance Bottlenecks
 
-**setTimeout Without Cleanup:**
-- Problem: Multiple setTimeout calls without cleanup in `src/pages/shopping-list.astro` (lines 400, 442, 570, 578) and `src/pages/recipes/[slug].astro` (lines 400, 442, 444)
-- Measurement: Potential memory leaks if components unmount before timeout fires
-- Cause: No clearTimeout on component unmount
-- Improvement path: Store timeout IDs and clear in cleanup functions
-- Location: `src/pages/shopping-list.astro`, `src/pages/recipes/[slug].astro`
+**Polling loop for async data:**
+- Problem: setTimeout polling instead of Promise/async-await
+- File: src/pages/shopping-list.astro (lines 91-104)
+- Measurement: Wastes CPU cycles checking every 50ms
+- Cause: Waiting for classification data load
+- Improvement path: Use Promise-based async/await or event emitter
 
-**Duplicate Code Pattern:**
-- Problem: Nearly identical recipe parsing logic in `src/pages/index.astro` and `src/pages/tags/index.astro` (lines 16-46)
-- Measurement: Code duplication across multiple files
-- Cause: Recipe parsing logic repeated in each page instead of shared utility
-- Improvement path: Extract recipe parsing to shared utility function in `src/utils/parse-recipe.ts`
-- Location: `src/pages/index.astro`, `src/pages/tags/index.astro`
+**Unnecessary initial render delay:**
+- Problem: 100ms setTimeout before UI initialization
+- File: src/pages/shopping-list.astro (line 135)
+- Measurement: 100ms delay to interactivity
+- Cause: Historical workaround (no longer needed)
+- Improvement path: Remove setTimeout, initialize immediately
 
 ## Fragile Areas
 
-**Shopping List Component:**
-- Why fragile: Largest file (909 lines) with multiple responsibilities
-- Common failures: Complex state management, nested logic, difficult to debug
-- Safe modification: Extract to smaller components with single responsibilities
-- Test coverage: No tests (high risk area)
+**Recipe parsing error handling:**
+- Files: src/utils/parse-recipe.ts (lines 63-71), src/pages/recipes/[slug].astro (lines 35-47)
+- Why fragile: Silent failures return empty objects, no error boundaries
+- Common failures: Malformed Cooklang, invalid YAML, missing files
+- Safe modification: Add error pages or boundaries, log to error tracking service
+- Test coverage: No tests for parse failures
 
-**Recipe Detail Page:**
-- Why fragile: Large file (760 lines) with inline scripts and complex logic
-- Common failures: Hard to understand, difficult to modify without breaking
-- Safe modification: Extract ingredient scaling, recipe steps, and shopping list logic to separate components
-- Test coverage: No tests (high risk area)
+**Large monolithic components:**
+- Files: src/pages/recipes/[slug].astro (559 lines), src/components/RecipeSteps.astro (433 lines), src/pages/shopping-list.astro (430 lines)
+- Why fragile: Single file handles parsing, rendering, scripting, styling
+- Common failures: Hard to test, understand, and modify
+- Safe modification: Split into smaller components and utility modules
+- Test coverage: No tests (makes refactoring risky)
 
 ## Scaling Limits
 
-**Static Site Limitations:**
-- Current capacity: Limited to static site features (no server-side processing)
-- Limit: Cannot support dynamic features requiring server (user accounts, database)
-- Symptoms at limit: Cannot add dynamic content without rebuilding
-- Scaling path: Would require migrating to server-side framework or adding serverless functions
-
-**GitHub Pages:**
-- Current capacity: 1GB repository size limit, 100GB bandwidth/month
-- Limit: Large media files could exceed repository size
-- Symptoms at limit: Cannot push to repository
-- Scaling path: Move media to CDN or external storage
+**Static site architecture:**
+- Current capacity: Limited by GitHub Pages (1GB repository, 100GB bandwidth/month)
+- Limit: Build time increases with recipe count
+- Symptoms at limit: Slow builds, large dist/ size
+- Scaling path: Pagination, incremental builds, move to more scalable hosting
 
 ## Dependencies at Risk
 
-**No known dependency risks** - Dependencies appear maintained and up-to-date
+**Outdated packages:**
+- Risk: @tmlmt/cooklang-parser 1.4.4 → 2.1.8 (major version bump)
+- Impact: Breaking changes in recipe parsing
+- Migration plan: Test compatibility, upgrade to v2.x
+
+- Risk: astro 4.16.19 → 5.16.11 (major version bump)
+- Impact: Breaking changes in Astro framework
+- Migration plan: Test in staging, follow Astro v5 migration guide
 
 ## Missing Critical Features
 
-**Test Infrastructure:**
-- Problem: No testing framework or automated tests
-- Current workaround: Manual testing during development
-- Blocks: Confidence in changes, regression prevention
-- Implementation complexity: Medium (add Vitest, write initial tests)
-
-**Code Quality Tools:**
-- Problem: No automated linting or formatting
-- Current workaround: Manual code review
-- Blocks: Code consistency, automated error detection
-- Implementation complexity: Low (add ESLint and Prettier configs)
+**No test suite:**
+- Problem: Zero test files, no guarantee complex logic works correctly
+- Current workaround: Manual testing
+- Blocks: Confidence in refactoring, catching regressions
+- Implementation complexity: Medium (Vitest setup, write tests for utilities)
 
 ## Test Coverage Gaps
 
-**No test coverage** - Entire codebase lacks tests:
-- What's not tested: All functionality (recipe parsing, shopping list, theme toggle, view modes)
-- Risk: Bugs go undetected, refactoring breaks code silently
-- Priority: High
-- Difficulty to test: Need to add test framework first
+**Critical utilities untested:**
+- What's not tested: Fraction conversion, unit conversion, ingredient aggregation, food classification
+- Risk: Bugs in mathematical logic could corrupt recipe display
+- Priority: HIGH
+- Difficulty to test: Low (pure functions, easy to test)
+
+**Recipe parsing untested:**
+- what's not tested: File parsing, YAML frontmatter extraction, error handling
+- Risk: Broken recipes appear on site with no indication
+- Priority: MEDIUM
+- Difficulty to test: Medium (requires test fixtures, file I/O mocking)
+
+## Positive Findings
+
+**What's done well:**
+- No TODO/FIXME comments (production-ready code)
+- Good error logging (all parse errors log to console)
+- Consistent naming conventions
+- Comprehensive JSDoc documentation on utilities
+- Clean separation of concerns (utils, components, types)
+- No hardcoded secrets (environment variables used)
+- PWA properly configured
+- RSS feed properly formatted
+- Responsive design throughout
+- Dark mode support with localStorage persistence
 
 ---
 
-*Concerns audit: 2025-01-15*
+*Concerns audit: 2025-01-16*
 *Update as issues are fixed or new ones discovered*
