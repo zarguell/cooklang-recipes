@@ -3,7 +3,7 @@
  * Handles YAML frontmatter extraction and JSON-LD schema generation.
  */
 
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 /**
  * Step item types in Cooklang format.

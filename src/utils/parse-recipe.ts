@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { Recipe } from "@tmlmt/cooklang-parser";
-import yaml from "js-yaml";
+import * as yaml from "js-yaml";
 
 /**
  * Parse a Cooklang recipe file with YAML frontmatter support.
