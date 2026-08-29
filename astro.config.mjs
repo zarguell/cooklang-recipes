@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import VitePWA from '@vite-pwa/astro';
+import sitemap from '@astrojs/sitemap';
 
 // In astro.config.mjs, use process.env (Astro loads config before .env files). [web:92]
 const OWNER = process.env.GITHUB_OWNER || '';
@@ -34,10 +35,32 @@ export default defineConfig({
   build: { format: 'directory' },
   trailingSlash: 'always',
   integrations: [
+    sitemap(),
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
+        // Offline reads: visited recipe pages + images are cached at runtime
+        // (precache only covers build-known assets at install time).
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'images',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
       manifest: {
         name: process.env.PUBLIC_APP_NAME ?? 'Recipe Site',
@@ -45,7 +68,7 @@ export default defineConfig({
         description:
           process.env.PUBLIC_APP_DESCRIPTION ??
           'A beautiful static recipe site built with Astro and CookLang',
-        theme_color: process.env.PUBLIC_THEME_COLOR ?? '#ff6b35',
+        theme_color: process.env.PUBLIC_THEME_COLOR ?? '#ff6b6b',
         background_color: process.env.PUBLIC_BG_COLOR ?? '#ffffff',
         display: 'standalone',
         start_url: BASE_WITH_TRAILING,

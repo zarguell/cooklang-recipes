@@ -3,7 +3,7 @@
  * Handles YAML frontmatter extraction and JSON-LD schema generation.
  */
 
-import * as yaml from 'js-yaml';
+import { extractSteps, resolveSteps } from '../lib/recipes';
 
 /**
  * Step item types in Cooklang format.
@@ -34,14 +34,6 @@ export interface RecipeMetadata {
 }
 
 /**
- * Frontmatter extraction result.
- */
-export interface FrontmatterResult {
-  frontmatter: RecipeMetadata;
-  recipeContent: string;
-}
-
-/**
  * Extract text from step items for JSON-LD representation.
  *
  * Handles various step item types: text, ingredient, cookware, timer.
@@ -51,14 +43,6 @@ export interface FrontmatterResult {
  * @param cookwareList - Array of cookware items indexed by numeric position
  * @param timersList - Array of timer items indexed by numeric position
  * @returns Text representation of the step
- *
- * @example
- * getStepText(
- *   [{ type: 'text', value: 'Heat oil' }],
- *   [{ name: 'Frying pan' }],
- *   [{ duration: { value: { value: 5 } }, unit: 'minutes' }]
- * )
- * // Returns: "Heat oil 5 minutes"
  */
 export function getStepText(
   items: StepItem[],
@@ -66,85 +50,58 @@ export function getStepText(
   timersList: any[]
 ): string {
   if (!items || items.length === 0) return "";
-  if (!Array.isArray(cookwareList)) return "";
-  if (!Array.isArray(timersList)) return "";
+
+  // Token indexes are resolved via the shared helpers in lib/recipes.ts
+  // (the parser emits { index } references — using item.value silently
+  // breaks cookware/timer text).
+  const index = (item: any) => item?.value ?? item?.index;
+  const fixedNumber = (quantity: any): number | null => {
+    if (typeof quantity === "number") return Number.isFinite(quantity) ? quantity : null;
+    if (quantity?.type !== "fixed") return null;
+    const v = quantity.value;
+    if (v?.type === "decimal" && typeof v.value === "number") return v.value;
+    if (v?.type === "fraction" && typeof v.num === "number" && typeof v.den === "number" && v.den !== 0) {
+      return v.num / v.den;
+    }
+    return null;
+  };
 
   return items
-    .map((item, itemIndex) => {
+    .map((item) => {
       if (!item) return "";
 
       if (item.type === "text") {
         const value = item?.value;
         if (value == null) return "";
         if (Array.isArray(value)) {
-          return value.filter(v => v != null).join(" ");
+          return value.filter((v) => v != null).join(" ");
         }
         return String(value);
       }
 
       if (item.type === "ingredient") {
-        return item.displayName || item.name || "";
+        return item.displayName || "";
       }
 
       if (item.type === "cookware") {
-        const cookwareItem = cookwareList[item.value];
-        return cookwareItem?.name || "cookware";
+        const idx = index(item);
+        return (typeof idx === "number" ? cookwareList[idx]?.name : undefined) || "cookware";
       }
 
       if (item.type === "timer") {
-        const timerItem = timersList[item.value];
-        if (!timerItem) return "timer";
-
-        const quantity =
-          timerItem?.duration?.value?.value ??
-          timerItem?.duration?.value ??
-          timerItem?.duration ??
-          timerItem?.amount?.quantity?.value ??
-          timerItem?.amount?.quantity ??
-          "";
-        const unit = timerItem?.unit || "minutes";
-
-        return quantity ? `${quantity} ${unit}` : "timer";
+        const idx = index(item);
+        const timerItem = typeof idx === "number" ? timersList[idx] : undefined;
+        const quantity = fixedNumber(timerItem?.duration);
+        if (quantity === null) return "timer";
+        let unit = timerItem?.unit || "minutes";
+        if (typeof unit === "string" && unit.includes("|")) unit = unit.split("|")[0];
+        return `${quantity} ${unit}`;
       }
 
       return "";
     })
-    .join("");
-}
-
-/**
- * Parse YAML frontmatter from recipe content.
- *
- * Extracts YAML metadata from the beginning of a .cook file and
- * returns both the parsed frontmatter and the remaining recipe content.
- *
- * @param content - Full recipe file content including YAML frontmatter
- * @returns Parsed frontmatter and remaining recipe content
- *
- * @example
- * const result = parseFrontmatter('---
- * title: Pasta
- * ---
- * Instructions...')
- * // Returns: {
- * //   frontmatter: { title: 'Pasta' },
- * //   recipeContent: 'Instructions...'
- * // }
- */
-export function parseFrontmatter(content: string): FrontmatterResult {
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!frontmatterMatch) {
-    return { frontmatter: {}, recipeContent: content };
-  }
-
-  try {
-    const frontmatter = yaml.load(frontmatterMatch[1]) || {};
-    const recipeContent = frontmatterMatch[2];
-    return { frontmatter, recipeContent };
-  } catch (e) {
-    console.error(`Error parsing YAML frontmatter:`, e);
-    return { frontmatter: {}, recipeContent: frontmatterMatch[2] };
-  }
+    .join("")
+    .trim();
 }
 
 /**
@@ -212,7 +169,49 @@ export function generateJsonLdSchema(
       .map((step: any, idx: number) => ({
         "@type": "HowToStep",
         position: idx + 1,
-        text: getStepText(step.items || []),
+        // cookware/timers MUST be forwarded — the guard in getStepText
+        // returns "" for every step without them (shipped empty
+        // instructions for months).
+        text: getStepText(step.items || [], cookwareList, timersList),
       })),
   };
+}
+
+/**
+ * Build a complete JSON-LD Recipe object from a loaded recipe.
+ * Convenience wrapper so pages don't hand-thread eight arguments.
+ */
+export function buildRecipeJsonLd(loaded: {
+  slug: string;
+  title: string;
+  parsed: any;
+}): Record<string, any> {
+  const parsed = loaded.parsed ?? {};
+  const metadata = parsed.metadata ?? {};
+  const ingredients = parsed.ingredients ?? [];
+  const cookwareList = parsed.cookware ?? [];
+  const timersList = parsed.timers ?? [];
+  const steps = extractSteps(parsed);
+
+  const imageUrl = metadata.image?.replace(/^["']|["']$/g, "") || null;
+  const tags: string[] = metadata.tags || [];
+
+  const schema = generateJsonLdSchema(
+    metadata,
+    imageUrl,
+    tags,
+    metadata.source,
+    ingredients,
+    steps,
+    cookwareList,
+    timersList
+  );
+
+  // Guard against silently shipping empty instructions again.
+  const withText = schema.recipeInstructions.filter((s: any) => s.text?.trim());
+  if (steps.length > 0 && withText.length === 0) {
+    console.warn(`JSON-LD: recipe "${loaded.slug}" produced no instruction text`);
+  }
+
+  return schema;
 }

@@ -1,4 +1,6 @@
 ---
+import { parseTimeToMinutes } from '../lib/time';
+
 const { recipe } = Astro.props;
 
 const title = recipe.parsed.metadata.title || recipe.slug;
@@ -6,21 +8,35 @@ const description = recipe.parsed.metadata.description || "";
 const tags = recipe.parsed.metadata.tags || [];
 const imageUrl = recipe.parsed.metadata.image?.replace(/^["']|["']$/g, '') || null;
 
+// Numeric time for "fastest" sorting: total, else prep + cook.
+const meta = recipe.parsed.metadata;
+const totalMinutes =
+  parseTimeToMinutes(meta["total-time"]) ??
+  (parseTimeToMinutes(meta["prep-time"]) !== null || parseTimeToMinutes(meta["cook-time"]) !== null
+    ? (parseTimeToMinutes(meta["prep-time"]) ?? 0) + (parseTimeToMinutes(meta["cook-time"]) ?? 0)
+    : null);
+
+// Build-time date (file mtime or frontmatter date) for "newest" sorting.
+const dateValue = meta.date ? new Date(meta.date).toISOString() : recipe.modifiedTime;
 
 // Get time info
-const prepTime = recipe.parsed.metadata["prep-time"];
-const cookTime = recipe.parsed.metadata["cook-time"];
-const totalTime = recipe.parsed.metadata["total-time"];
-const servings = recipe.parsed.metadata.servings;
+const prepTime = meta["prep-time"];
+const cookTime = meta["cook-time"];
+const totalTime = meta["total-time"];
+const servings = meta.servings;
 
 ---
 
+<div class="recipe-card-wrap">
 <a 
   href={`${import.meta.env.BASE_URL}recipes/${recipe.slug}/`} 
   class="recipe-card"
   data-title={title.toLowerCase()}
   data-description={description.toLowerCase()}
   data-tags={tags.join(',').toLowerCase()}
+  data-time-minutes={totalMinutes ?? ""}
+  data-date={dateValue}
+  data-slug={recipe.slug}
 >
   <div class="recipe-image">
     {imageUrl ? (
@@ -61,8 +77,50 @@ const servings = recipe.parsed.metadata.servings;
     </div>
   </div>
 </a>
+<button
+  type="button"
+  class="fav-btn"
+  data-fav
+  data-fav-slug={recipe.slug}
+  aria-pressed="false"
+  aria-label={`Add ${title} to favorites`}
+  title="Favorite"
+>★</button>
+</div>
 
 <style>
+  .recipe-card-wrap {
+    position: relative;
+  }
+
+  .fav-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+
+  .fav-btn:hover {
+    transform: scale(1.1);
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .fav-btn[aria-pressed="true"] {
+    color: #ffd166;
+  }
+
   .recipe-card {
     display: block;
     background: var(--surface);

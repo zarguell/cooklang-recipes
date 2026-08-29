@@ -3,6 +3,8 @@
  * Handles extracting ingredients from recipe pages and adding them to the shopping list.
  */
 
+import { shoppingList } from './shopping-list-store';
+
 /**
  * Ingredient data structure for shopping list integration.
  */
@@ -51,8 +53,6 @@ export function getIngredientsForShoppingList(): RecipeIngredient[] {
 /**
  * Check if the current recipe is already in the shopping list.
  *
- * Requires the global `window.shoppingList` object to be available.
- *
  * @param recipeSlug - The recipe slug to check
  * @returns true if the recipe is in the shopping list, false otherwise
  *
@@ -62,8 +62,7 @@ export function getIngredientsForShoppingList(): RecipeIngredient[] {
  * }
  */
 export function isRecipeInShoppingList(recipeSlug: string): boolean {
-  if (!window.shoppingList) return false;
-  return window.shoppingList.isRecipeInList(recipeSlug);
+  return shoppingList.isRecipeInList(recipeSlug);
 }
 
 /**
@@ -141,11 +140,6 @@ export function setupShoppingListButton(button: HTMLElement, recipeSlug: string,
   if (!button) return;
 
   button.addEventListener("click", () => {
-    if (!window.shoppingList) {
-      alert("Shopping list not available. Please refresh the page and try again.");
-      return;
-    }
-
     const ingredients = getIngredientsForShoppingList();
 
     if (ingredients.length === 0) {
@@ -153,7 +147,7 @@ export function setupShoppingListButton(button: HTMLElement, recipeSlug: string,
       return;
     }
 
-    const wasRemoved = window.shoppingList.addRecipe(recipeSlug, recipeTitle, ingredients);
+    const wasRemoved = shoppingList.addRecipe(recipeSlug, recipeTitle, ingredients);
     updateShoppingListButton(button, recipeSlug);
 
     const message = wasRemoved
@@ -177,5 +171,5 @@ export function setupShoppingListButton(button: HTMLElement, recipeSlug: string,
  * initializeShoppingListButton(button, 'pasta-carbonara');
  */
 export function initializeShoppingListButton(button: HTMLElement, recipeSlug: string): void {
-  setTimeout(() => updateShoppingListButton(button, recipeSlug), 100);
+  updateShoppingListButton(button, recipeSlug);
 }

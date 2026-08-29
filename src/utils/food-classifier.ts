@@ -7,13 +7,39 @@
  * - Group ingredients by category for organized display
  */
 
+/**
+ * Normalize an ingredient name by stripping quantities, units and
+ * preparation descriptors. Pure function — safe to call from anywhere
+ * (build time, tests, client) with no classifier instance.
+ */
+export function normalizeIngredientName(ingredientName: string): string {
+  if (!ingredientName) return '';
+
+  let normalized = ingredientName.toLowerCase().trim();
+
+  normalized = normalized.replace(/^[\d\s\/]*\s*([a-z]*)\s*/, '');
+
+  const units = ['tsp', 'tbsp', 'cup', 'cups', 'oz', 'lb', 'lbs', 'gram', 'grams', 'g', 'kg', 'ml', 'l', 'pinch', 'dash', 'clove', 'cloves'];
+  units.forEach(unit => {
+    const regex = new RegExp(`\\b${unit}\\b`, 'g');
+    normalized = normalized.replace(regex, '');
+  });
+
+  normalized = normalized.replace(/\([^)]*\)/g, '');
+
+  const descriptors = ['grated', 'chopped', 'diced', 'minced', 'finely', 'roughly', 'fresh', 'dried', 'ground', 'crushed', 'sliced', 'whole', 'large', 'small', 'medium', 'extra', 'virgin'];
+  descriptors.forEach(descriptor => {
+    const regex = new RegExp(`\\b${descriptor}\\b`, 'g');
+    normalized = normalized.replace(regex, '');
+  });
+
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+
+  return normalized;
+}
+
 export class FoodClassifier {
   classificationData: any = null;
-
-  constructor() {
-    this.classificationData = null;
-    this.loadData();
-  }
 
   /**
    * Load food classification data from JSON file.
@@ -21,68 +47,33 @@ export class FoodClassifier {
    * Fetches classification data from the server including sections, rules,
    * and overrides. Data is required for classification to work.
    *
-   * @async
-   * @throws Logs error to console if fetch fails
+   * The promise resolves (not rejects) even on failure so callers can
+   * simply `await classifier.loadData()` — classification then falls back
+   * to the "Other" bucket.
    *
    * @example
+   * const classifier = new FoodClassifier();
    * await classifier.loadData();
-   * // classifier.classificationData now contains classification rules
+   * classifier.classifyIngredient("tomatoes");
    */
-  async loadData() {
+  async loadData(): Promise<void> {
     try {
-      const response = await fetch(`${window.BASE_URL}static/food-classification.json`);
+      const response = await fetch(`${import.meta.env.BASE_URL}static/food-classification.json`);
       this.classificationData = await response.json();
     } catch (error) {
       console.error('Failed to load food classification data:', error);
+      this.classificationData = { sections: [], overrides: {}, rules: [] };
     }
   }
 
   /**
-   * Normalize ingredient name by removing quantities, units, and descriptors.
-   *
-   * Processes ingredient names to extract the core food item by:
-   * - Converting to lowercase
-   * - Removing leading quantities (e.g., "2 cups")
-   * - Removing units (tsp, tbsp, cup, oz, etc.)
-   * - Removing parenthetical content
-   * - Removing descriptors (chopped, grated, fresh, etc.)
-   * - Trimming whitespace
+   * Normalize ingredient name. Delegates to the shared pure function.
    *
    * @param ingredientName - Raw ingredient name (e.g., "2 cups chopped onions")
    * @returns Normalized ingredient name (e.g., "onions")
-   *
-   * @example
-   * normalizeIngredient("2 cups chopped onions")
-   * // Returns: "onions"
-   *
-   * @example
-   * normalizeIngredient("1/2 cup finely diced carrots")
-   * // Returns: "carrots"
    */
-  normalizeIngredient(ingredientName: string) {
-    if (!ingredientName) return '';
-
-    let normalized = ingredientName.toLowerCase().trim();
-
-    normalized = normalized.replace(/^[\d\s\/]*\s*([a-z]*)\s*/, '');
-
-    const units = ['tsp', 'tbsp', 'cup', 'cups', 'oz', 'lb', 'lbs', 'gram', 'grams', 'g', 'kg', 'ml', 'l', 'pinch', 'dash', 'clove', 'cloves'];
-    units.forEach(unit => {
-      const regex = new RegExp(`\\b${unit}\\b`, 'g');
-      normalized = normalized.replace(regex, '');
-    });
-
-    normalized = normalized.replace(/\([^)]*\)/g, '');
-
-    const descriptors = ['grated', 'chopped', 'diced', 'minced', 'finely', 'roughly', 'fresh', 'dried', 'ground', 'crushed', 'sliced', 'whole', 'large', 'small', 'medium', 'extra', 'virgin'];
-    descriptors.forEach(descriptor => {
-      const regex = new RegExp(`\\b${descriptor}\\b`, 'g');
-      normalized = normalized.replace(regex, '');
-    });
-
-    normalized = normalized.replace(/\s+/g, ' ').trim();
-
-    return normalized;
+  normalizeIngredient(ingredientName: string): string {
+    return normalizeIngredientName(ingredientName);
   }
 
   /**

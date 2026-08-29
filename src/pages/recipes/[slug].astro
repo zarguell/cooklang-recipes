@@ -1,8 +1,4 @@
 ---
-import { readdir } from "fs/promises";
-import { resolve } from "path";
-import { readFileSync } from "fs";
-import { Recipe } from "@tmlmt/cooklang-parser";
 import JsonLdSchema from "../../components/JsonLdSchema.astro";
 import IngredientList from "../../components/IngredientList.astro";
 import RecipeSteps from "../../components/RecipeSteps.astro";
@@ -10,75 +6,36 @@ import CookwareList from "../../components/CookwareList.astro";
 import CooklangSourceBlock from "../../components/CooklangSourceBlock.astro";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import Layout from "../../layouts/Layout.astro";
-import { parseFrontmatter, generateJsonLdSchema } from "../../utils/recipe-metadata";
+import { buildRecipeJsonLd } from "../../utils/recipe-metadata";
+import { getAllRecipes, slugifyTag, extractSteps } from "../../lib/recipes";
 
 export async function getStaticPaths() {
-  const recipesDir = resolve("recipes");
-  const files = await readdir(recipesDir);
-  const cookFiles = files.filter((f) => f.endsWith(".cook"));
-
-  return cookFiles.map((file) => ({
-    params: { slug: file.replace(".cook", "") },
+  // Single shared loading pipeline (recursive discovery, frontmatter merge).
+  return getAllRecipes().map((recipe) => ({
+    params: { slug: recipe.slug },
+    props: { recipe },
   }));
 }
 
-const { slug } = Astro.params;
-const recipePath = resolve("recipes", `${slug}.cook`);
-const content = readFileSync(recipePath, "utf-8");
-
-// Extract YAML frontmatter
-const { frontmatter, recipeContent } = parseFrontmatter(content);
-
-let recipe;
-let parseError = null;
-
-try {
-  recipe = new Recipe(recipeContent);
-} catch (error) {
-  console.error(`Error parsing recipe ${slug}:`, error.message);
-  parseError = error.message;
-  recipe = {
-    metadata: {},
-    ingredients: [],
-    sections: [],
-    cookware: [],
-    timers: [],
-  };
-}
-
-// Merge frontmatter with parsed metadata - frontmatter takes priority
-recipe.metadata = { ...recipe.metadata, ...frontmatter };
+const { recipe: loaded } = Astro.props;
+const { slug } = loaded;
+// `recipe` keeps its historical shape (parsed Recipe with merged metadata)
+// so the template below stays unchanged.
+const recipe = loaded.parsed;
 
 const ingredients = recipe.ingredients || [];
 const cookwareList = recipe.cookware || [];
 const timersList = recipe.timers || [];
 
-// Extract steps from sections
-const steps = [];
-if (recipe.sections) {
-  for (const section of recipe.sections) {
-    if (section.content) {
-      const sectionSteps = section.content.filter((item: any) => item.type === "step");
-      steps.push(...sectionSteps);
-    }
-  }
-}
+// Extract steps from all sections, in order
+const steps = extractSteps(recipe);
 
 const imageUrl = recipe.metadata.image?.replace(/^["']|["']$/g, "") || null;
-const tags = recipe.metadata.tags || [];
+const tags: string[] = recipe.metadata.tags || [];
 const source = recipe.metadata.source;
 
-// Generate JSON-LD schema
-const jsonLd = generateJsonLdSchema(
-  recipe.metadata,
-  imageUrl,
-  tags,
-  source,
-  ingredients,
-  steps,
-  cookwareList,
-  timersList
-);
+// Generate JSON-LD schema (cookware/timers forwarded correctly now)
+const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
 ---
 
 <Layout title={recipe.metadata.title || slug} description={recipe.metadata.description} image={imageUrl}>
@@ -90,15 +47,26 @@ const jsonLd = generateJsonLdSchema(
     <JsonLdSchema schema={jsonLd} />
   </Fragment>
 
-  <div class="recipe-header">
-    <a href={import.meta.env.BASE_URL} class="back-button">← Back to recipes</a>
-    <h1>{recipe.metadata.title || slug}</h1>
+  <div class="recipe-header" data-pagefind-body>
+    <a href={import.meta.env.BASE_URL} class="back-button" data-pagefind-ignore>← Back to recipes</a>
+    <h1>
+      {recipe.metadata.title || slug}
+      <button
+        type="button"
+        class="fav-star"
+        data-fav
+        data-fav-slug={slug}
+        aria-pressed="false"
+        aria-label={`Add ${recipe.metadata.title || slug} to favorites`}
+        title="Favorite"
+      >★</button>
+    </h1>
     {recipe.metadata.description && <p>{recipe.metadata.description}</p>}
 
     {tags.length > 0 && (
       <div class="tags">
         {tags.map((tag: string) => (
-          <a href={`${import.meta.env.BASE_URL}tags/${tag}/`} class="tag">
+          <a href={`${import.meta.env.BASE_URL}tags/${slugifyTag(tag)}/`} class="tag">
             #{tag}
           </a>
         ))}
@@ -112,30 +80,40 @@ const jsonLd = generateJsonLdSchema(
       </div>
     )}
 
-    <div class="recipe-controls" data-recipe-controls>
-      <button type="button" class="button secondary" id="recipePrintBtn">🖨️ Print</button>
+    <div class="recipe-controls" data-recipe-controls data-pagefind-ignore>
+      <button type="button" class="button secondary" id="recipePrintBtn">
+        <span aria-hidden="true">🖨️</span> Print
+      </button>
       <button type="button" class="button primary" id="addToShoppingListBtn"
               data-recipe-slug={slug}
               data-recipe-title={recipe.metadata.title || slug}>
-        🛒 Add to Shopping List
+        <span aria-hidden="true">🛒</span> Add to Shopping List
       </button>
+      <a class="button cook-link" href={`${import.meta.env.BASE_URL}recipes/${slug}/cook/`}>
+        <span aria-hidden="true">▶️</span> Start cooking
+      </a>
 
-      <label class="scale">
-        <span class="scale-label">Scale</span>
+      <div class="scale" role="group" aria-label="Recipe scaling">
+        <button type="button" class="scale-btn" id="scaleMinus" aria-label="Decrease scale">−</button>
         <input
           id="recipeScaleInput"
           type="number"
           inputmode="decimal"
           step="0.1"
           min="0.1"
+          max="99"
           value="1"
+          aria-label="Scale factor"
         />
-        <span class="scale-suffix">×</span>
-      </label>
+        <span class="scale-suffix" aria-hidden="true">×</span>
+        <button type="button" class="scale-btn" id="scalePlus" aria-label="Increase scale">+</button>
+      </div>
+      <span class="scaled-servings" id="scaledServings" aria-live="polite"></span>
+      <p class="print-scale-note" id="printScaleNote" aria-hidden="true"></p>
     </div>
   </div>
 
-  <div class="hero-section">
+  <div class="hero-section" data-pagefind-body>
     <div class="recipe-image-container">
       {imageUrl ? (
         <img
@@ -156,7 +134,7 @@ const jsonLd = generateJsonLdSchema(
       {recipe.metadata?.servings && (
         <div class="meta-item">
           <div class="meta-label">Servings</div>
-          <div class="meta-value">{recipe.metadata.servings}</div>
+          <div class="meta-value" data-base-servings>{recipe.metadata.servings}</div>
         </div>
       )}
 
@@ -183,16 +161,16 @@ const jsonLd = generateJsonLdSchema(
     </div>
   </div>
 
-  <div class="recipe-content">
+  <div class="recipe-content" data-pagefind-body>
     <div class="recipe-column">
       <div class="recipe-section">
-        <h2>🥘 Ingredients</h2>
+        <h2><span aria-hidden="true">🥘</span> Ingredients</h2>
         <IngredientList ingredients={ingredients} />
       </div>
 
       {cookwareList.length > 0 && (
         <div class="recipe-section">
-          <h2>🍳 Cookware</h2>
+          <h2><span aria-hidden="true">🍳</span> Cookware</h2>
           <CookwareList cookware={cookwareList} />
         </div>
       )}
@@ -200,9 +178,9 @@ const jsonLd = generateJsonLdSchema(
 
     <div class="recipe-column">
       <div class="recipe-section">
-        <h2>👨‍🍳 Instructions</h2>
+        <h2><span aria-hidden="true">👨‍🍳</span> Instructions</h2>
         {steps.length > 0 ? (
-          <RecipeSteps steps={steps} cookware={cookwareList} timers={timersList} />
+          <RecipeSteps parsed={recipe} />
         ) : (
           <p>No instructions found</p>
         )}
@@ -210,27 +188,69 @@ const jsonLd = generateJsonLdSchema(
     </div>
   </div>
 
-  <CooklangSourceBlock slug={slug} text={content} />
+  <CooklangSourceBlock slug={slug} text={loaded.rawContent} />
 
   <Fragment slot="scripts">
     <script type="module">
-      import { formatQty } from '../../scripts/quantity-formatter.ts';
+      import { formatQty } from '../../lib/quantities';
       import { applyScale } from '../../scripts/recipe-scaler.ts';
+      import { recordRecent, isFavorite, toggleFavorite } from '../../scripts/library-store';
+
+      recordRecent(document.querySelector('[data-fav]')?.getAttribute('data-fav-slug') ?? '');
+      document.querySelectorAll<HTMLElement>('[data-fav]').forEach((btn) => {
+        const slug = btn.dataset.favSlug ?? '';
+        btn.setAttribute('aria-pressed', String(isFavorite(slug)));
+        btn.addEventListener('click', () => {
+          const active = toggleFavorite(slug);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+      });
 
       const controls = document.querySelector("[data-recipe-controls]");
       if (controls) {
         const printBtn = document.getElementById("recipePrintBtn");
         const scaleInput = document.getElementById("recipeScaleInput");
+        const scaledServings = document.getElementById("scaledServings");
+        const printScaleNote = document.getElementById("printScaleNote");
+
+        // Base servings from metadata (may be "4" or "4 servings").
+        const metaServings = document.querySelector("[data-base-servings]");
+        const baseServings = metaServings ? parseFloat(metaServings.textContent || "") : NaN;
+
+        function currentScale() {
+          const mult = Number(scaleInput?.value || "1");
+          return Number.isFinite(mult) && mult > 0 ? mult : 1;
+        }
+
+        function updateScaleUI() {
+          const mult = currentScale();
+          applyScale(mult);
+          if (scaledServings) {
+            scaledServings.textContent =
+              Number.isFinite(baseServings)
+                ? `${formatQty(baseServings * mult)} servings`
+                : `\u00d7${formatQty(mult)}`;
+          }
+          if (printScaleNote) {
+            printScaleNote.textContent = mult === 1 ? "" : `Scaled \u00d7${formatQty(mult)}`;
+          }
+        }
 
         if (printBtn) printBtn.addEventListener("click", () => window.print());
 
         if (scaleInput) {
-          scaleInput.addEventListener("input", () => {
-            const mult = Number(scaleInput.value || "1");
-            applyScale(Number.isFinite(mult) && mult > 0 ? mult : 1);
-          });
+          scaleInput.addEventListener("input", updateScaleUI);
 
-          applyScale(Number(scaleInput.value || "1") || 1);
+          // Stepper buttons: \u00b10.5 within [0.1, 99]
+          const step = (delta) => {
+            const next = Math.min(99, Math.max(0.1, Math.round((currentScale() + delta) * 10) / 10));
+            scaleInput.value = String(next);
+            updateScaleUI();
+          };
+          document.getElementById("scaleMinus")?.addEventListener("click", () => step(-0.5));
+          document.getElementById("scalePlus")?.addEventListener("click", () => step(0.5));
+
+          updateScaleUI();
         }
 
         // Shopping list functionality
@@ -252,6 +272,26 @@ const jsonLd = generateJsonLdSchema(
 <style>
   .recipe-header {
     margin-bottom: 1rem;
+  }
+
+  .fav-star {
+    border: 0;
+    background: transparent;
+    color: var(--border);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: middle;
+    padding: 0.1em 0.2em;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  .fav-star[aria-pressed="true"] {
+    color: #ffd166;
+  }
+
+  .fav-star:hover {
+    transform: scale(1.15);
   }
 
   /* Recipe controls */
@@ -290,6 +330,40 @@ const jsonLd = generateJsonLdSchema(
   .recipe-controls .scale-suffix {
     color: var(--muted);
     font-weight: 700;
+  }
+
+  .recipe-controls .scale-btn {
+    border: 0;
+    background: var(--surface);
+    color: var(--text);
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .recipe-controls .scale-btn:hover {
+    background: var(--border);
+  }
+
+  .scaled-servings {
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .cook-link {
+    background: var(--accent);
+  }
+
+  .cook-link:hover {
+    background: #ee5a52;
+  }
+
+  .print-scale-note {
+    display: none;
   }
 
   /* Image + meta */
@@ -515,10 +589,21 @@ const jsonLd = generateJsonLdSchema(
 
   @media print {
     .recipe-header .back-button,
-    .recipe-controls,
-    .tags,
+    .recipe-controls .button,
+    .recipe-controls .scale,
+    .scaled-servings,
+    .theme-toggle-container,
+    .cooklang-source,
     .source {
       display: none !important;
+    }
+
+    /* Keep the scale visible in print via the note (e.g. "Scaled \u00d72") */
+    .print-scale-note {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
     }
 
     body {
@@ -528,9 +613,18 @@ const jsonLd = generateJsonLdSchema(
       max-width: none;
     }
 
+    .recipe-content {
+      grid-template-columns: 1fr;
+    }
+
     .recipe-section {
       box-shadow: none;
       border: 1px solid #ccc;
+      break-inside: avoid;
+    }
+
+    .step {
+      break-inside: avoid;
     }
   }
 

@@ -1,0 +1,78 @@
+/*
+ * Design tokens — the single source of truth for themeable design values.
+ * Imported globally by src/layouts/Layout.astro.
+ *
+ * Component code must use these variables, never raw color values.
+ * (Audit finding: hardcoded blues/oranges had drifted across pages.)
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --text: #2d3436;
+  --muted: #636e72;
+  --border: #dfe6e9;
+  --accent: #ff6b6b;
+  --accent-2: #0984e3;
+  --input-bg: #ffffff;
+  --input-text: #2d3436;
+  --input-border: #dfe6e9;
+  --input-focus: #0984e3;
+
+  --focus-ring: 2px solid var(--accent-2);
+  --focus-offset: 2px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #1a1f2e;
+  --surface: #232937;
+  --text: #e1e8ed;
+  --muted: #8899a6;
+  --border: #38444d;
+  --accent: #ff6b6b;
+  --accent-2: #1da1f2;
+  --input-bg: #2f3336;
+  --input-text: #e1e8ed;
+  --input-border: #38444d;
+  --input-focus: #1da1f2;
+}
+
+/* Accessible focus for every interactive element (a11y audit finding). */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+/* Respect users who prefer minimal motion (a11y audit finding). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip-to-content link: visually hidden until focused. */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 2000;
+  background: var(--accent-2);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 0 0 8px 8px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 0;
+}

@@ -3,7 +3,7 @@
  * Handles dynamic scaling of recipe ingredients with formatted display.
  */
 
-import { formatQty } from './quantity-formatter.ts';
+import { formatQty } from '../lib/quantities';
 
 /**
  * Apply a scaling multiplier to all ingredient quantities in the recipe.

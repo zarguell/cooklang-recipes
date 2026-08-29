@@ -14,12 +14,22 @@ const baseUrl = import.meta.env.BASE_URL;
   <header class="page-header">
     <div class="header-top">
       <a href={import.meta.env.BASE_URL} class="back-button">← Back to recipes</a>
-      <h1>🛒 Shopping List</h1>
+      <h1><span aria-hidden="true">🛒</span> Shopping List</h1>
     </div>
     <div class="header-actions">
+      <button type="button" class="button secondary" id="copyListBtn">Copy</button>
+      <button type="button" class="button secondary" id="exportCsvBtn">CSV</button>
+      <button type="button" class="button secondary" id="exportJsonBtn">Backup</button>
+      <button type="button" class="button secondary" id="importJsonBtn">Import</button>
+      <input type="file" id="importFileInput" accept="application/json,.json" hidden />
+      <button type="button" class="button secondary" id="printListBtn">Print</button>
       <button type="button" class="button secondary" id="clearListBtn">
-        🗑️ Clear All
+        <span aria-hidden="true">🗑️</span> Clear All
       </button>
+    </div>
+    <div id="toast" class="toast" role="status" hidden>
+      <span id="toastMessage"></span>
+      <button type="button" id="toastAction" class="toast-action" hidden></button>
     </div>
   </header>
 
@@ -54,92 +64,183 @@ const baseUrl = import.meta.env.BASE_URL;
   </div>
 
   <Fragment slot="scripts">
-    <script define:vars={{ baseUrl }} is:inline type="module">
-      // Make baseUrl available to the script
-      window.BASE_URL = baseUrl;
-    </script>
-    <script is:inline type="module">
-      import { FoodClassifier } from '../../utils/food-classifier.js';
-      import { parseQuantityAndUnit, toCanonical, convertToDisplayUnit, formatQuantity } from '../../utils/unit-converter.js';
-      import { aggregateIngredients as aggregateIngredientsUtil } from '../../utils/shopping-list-aggregator.js';
-      import { updateEmptyState, updateStats, buildRecipeList, buildIngredientList } from '../../utils/shopping-list-renderer.js';
+    <script>
+      // Processed (bundled) module — imports resolve at build time.
+      // Fixes the previous is:inline version whose `../../utils/*.js`
+      // imports 404'd in production and never ran at all.
+      import { FoodClassifier } from '../utils/food-classifier';
+      import { aggregateIngredients } from '../utils/shopping-list-aggregator';
+      import {
+        updateEmptyState,
+        updateStats,
+        buildRecipeList,
+        buildIngredientList,
+        buildListText,
+        buildListCsv,
+      } from '../utils/shopping-list-renderer';
+      import { shoppingList } from '../scripts/shopping-list-store';
 
-      class ShoppingListUI {
-        constructor() {
-          this.classifier = new FoodClassifier();
-          this.init();
+      const classifier = new FoodClassifier();
+
+      function aggregate() {
+        return aggregateIngredients(shoppingList.list.recipes);
+      }
+
+      function render() {
+        const recipes = shoppingList.list.recipes;
+
+        if (recipes.length === 0) {
+          updateEmptyState(true);
+          return;
         }
 
-        render() {
-          const isEmpty = !window.shoppingList || !window.shoppingList.list.recipes.length;
+        updateEmptyState(false);
+        updateStats(recipes);
+        buildRecipeList(recipes);
+        buildIngredientList(aggregate(), classifier, (key) => shoppingList.isIngredientChecked(key));
+      }
 
-          if (isEmpty) {
-            updateEmptyState(true);
-            return;
+      // --- Toast with optional undo ---
+      const toast = document.getElementById('toast') as HTMLElement | null;
+      const toastMessage = document.getElementById('toastMessage');
+      const toastAction = document.getElementById('toastAction');
+      let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+      function showToast(message: string, actionLabel?: string, onAction?: () => void) {
+        if (!toast || !toastMessage || !toastAction) return;
+        toastMessage.textContent = message;
+        if (actionLabel && onAction) {
+          toastAction.textContent = actionLabel;
+          toastAction.hidden = false;
+          toastAction.onclick = () => {
+            onAction();
+            hideToast();
+          };
+        } else {
+          toastAction.hidden = true;
+          toastAction.onclick = null;
+        }
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(hideToast, 6000);
+      }
+
+      function hideToast() {
+        if (toast) toast.hidden = true;
+        clearTimeout(toastTimer);
+      }
+
+      // --- Downloads / clipboard ---
+      function download(filename: string, content: string, type: string) {
+        const blob = new Blob([content], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function init() {
+        await classifier.loadData(); // resolves even on failure — no polling
+        render();
+
+        // Clear with undo (no confirm() dialogs)
+        document.getElementById('clearListBtn')?.addEventListener('click', () => {
+          if (shoppingList.list.recipes.length === 0) return;
+          const previous = JSON.parse(JSON.stringify(shoppingList.list));
+          shoppingList.clearAll();
+          render();
+          showToast('List cleared', 'Undo', () => {
+            shoppingList.replaceAll(previous);
+            render();
+          });
+        });
+
+        // Copy as text
+        document.getElementById('copyListBtn')?.addEventListener('click', async () => {
+          const text = buildListText(aggregate(), classifier, shoppingList.list.recipes);
+          try {
+            await navigator.clipboard.writeText(text);
+            showToast('List copied to clipboard');
+          } catch {
+            showToast('Could not access clipboard');
           }
+        });
 
-          updateEmptyState(false);
-          updateStats(window.shoppingList.list.recipes);
-          buildRecipeList(window.shoppingList.list.recipes);
+        // CSV export
+        document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
+          download('shopping-list.csv', buildListCsv(aggregate(), classifier), 'text/csv');
+        });
 
-          const aggregated = aggregateIngredientsUtil(window.shoppingList.list.recipes);
-          buildIngredientList(aggregated, this.classifier);
-        }
+        // JSON backup export
+        document.getElementById('exportJsonBtn')?.addEventListener('click', () => {
+          download(
+            'shopping-list-backup.json',
+            JSON.stringify(shoppingList.list, null, 2),
+            'application/json'
+          );
+          showToast('Backup downloaded');
+        });
 
-        init() {
-          // Wait a bit for global shopping list to be ready and classification data to load
-          setTimeout(async () => {
-            // Wait for classification data to load
-            if (this.classifier.classificationData === null) {
-              await new Promise(resolve => {
-                const checkData = () => {
-                  if (this.classifier.classificationData !== null) {
-                    resolve();
-                  } else {
-                    setTimeout(checkData, 50);
-                  }
-                };
-                checkData();
-              });
+        // JSON backup import
+        const importInput = document.getElementById('importFileInput') as HTMLInputElement | null;
+        document.getElementById('importJsonBtn')?.addEventListener('click', () => importInput?.click());
+        importInput?.addEventListener('change', async () => {
+          const file = importInput.files?.[0];
+          if (!file) return;
+          try {
+            const data = JSON.parse(await file.text());
+            if (shoppingList.replaceAll(data)) {
+              render();
+              showToast('Backup imported');
+            } else {
+              showToast('File is not a valid shopping list backup');
             }
+          } catch {
+            showToast('Could not read that file');
+          }
+          importInput.value = '';
+        });
 
-            this.render();
+        // Print list
+        document.getElementById('printListBtn')?.addEventListener('click', () => window.print());
 
-            // Attach event listeners
-            document.getElementById('clearListBtn').addEventListener('click', () => {
-              if (window.shoppingList.list.recipes.length > 0 && confirm('Are you sure you want to clear your entire shopping list?')) {
-                window.shoppingList.clearAll();
-                this.render();
+        // Handle recipe removal (button inside <summary> — don't toggle details)
+        document.getElementById('recipes-list')?.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.matches('.remove-recipe')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const slug = target.getAttribute('data-slug');
+            if (slug) {
+              const removed = shoppingList.list.recipes.find((r) => r.slug === slug);
+              shoppingList.removeRecipe(slug);
+              render();
+              if (removed) {
+                showToast('Removed "' + removed.title + '"', 'Undo', () => {
+                  shoppingList.addRecipe(removed.slug, removed.title, removed.ingredients);
+                  render();
+                });
               }
-            });
+            }
+          }
+        });
 
-            // Handle recipe removal
-            document.getElementById('recipes-list').addEventListener('click', (e) => {
-              if (e.target.matches('.remove-recipe')) {
-                const slug = e.target.getAttribute('data-slug');
-                window.shoppingList.removeRecipe(slug);
-                this.render();
-              }
-            });
-
-            // Handle ingredient checkboxes
-            document.getElementById('aggregated-ingredients').addEventListener('change', (e) => {
-              if (e.target.matches('.ingredient-checkbox')) {
-                const label = e.target.nextElementSibling;
-                if (label) {
-                  label.classList.toggle('checked', e.target.checked);
-                }
-              }
-            });
-
-          }, 100);
-        }
+        // Checked-state persistence for ingredient checkboxes
+        document.getElementById('aggregated-ingredients')?.addEventListener('change', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.matches('.ingredient-checkbox')) {
+            const input = target as HTMLInputElement;
+            const key = input.dataset.key;
+            const label = input.nextElementSibling as HTMLElement | null;
+            if (key) shoppingList.toggleIngredientChecked(key, input.checked);
+            if (label) label.classList.toggle('checked', input.checked);
+          }
+        });
       }
 
-      // Initialize shopping list UI only on this page
-      if (document.querySelector('.shopping-list-container')) {
-        const shoppingListUI = new ShoppingListUI();
-      }
+      init().catch((err) => console.error('Shopping list failed to initialize:', err));
     </script>
   </Fragment>
 </Layout>
@@ -159,6 +260,83 @@ const baseUrl = import.meta.env.BASE_URL;
   .header-actions {
     display: flex;
     justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--text);
+    color: var(--bg);
+    padding: 0.75rem 1.25rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    z-index: 1500;
+    font-weight: 600;
+  }
+
+  .toast-action {
+    border: 0;
+    background: transparent;
+    color: var(--accent-2);
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .recipe-item {
+    padding: 0;
+  }
+
+  .recipe-item details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .recipe-item summary {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .recipe-item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .recipe-item .recipe-count {
+    color: var(--muted);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .recipe-ingredients {
+    margin: 0;
+    padding: 0.25rem 1rem 0.75rem 2rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  @media print {
+    .header-actions,
+    .back-button,
+    .theme-toggle-container {
+      display: none !important;
+    }
+
+    .toast {
+      display: none !important;
+    }
   }
 
   .shopping-list-container {

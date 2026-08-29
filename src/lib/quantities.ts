@@ -1,6 +1,11 @@
 /**
  * Quantity formatting utilities for recipe measurements.
- * Converts decimal quantities to nice fractions with common kitchen denominators.
+ * The SINGLE source of truth for fraction/quantity formatting across
+ * build-time components and client-side scripts. Do not copy this logic —
+ * import it.
+ *
+ * Converts decimal quantities to nice fractions with common kitchen
+ * denominators (2, 3, 4, 6, 8, 12, 16).
  */
 
 /**
@@ -100,4 +105,14 @@ export function formatQty(x: number): string {
   if (num === 0) return String(whole);
   if (whole === 0) return `${num}/${den}`;
   return `${whole} ${num}/${den}`;
+}
+
+/**
+ * Append a unit to a formatted quantity, e.g. formatQtyWithUnit(1.5, "cup")
+ * returns "1 1/2 cup". Unit is optional/empty-safe.
+ */
+export function formatQtyWithUnit(x: number, unit?: string | null): string {
+  const qty = formatQty(x);
+  if (!qty) return "";
+  return unit ? `${qty} ${unit}` : qty;
 }

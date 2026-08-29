@@ -1,11 +1,13 @@
 /**
  * UnitConverter - Converts and formats ingredient quantities
  *
- * Provides unit conversion, normalization, and formatting utilities:
+ * Provides unit conversion and normalization utilities:
  * - Parse quantities and units from ingredients
  * - Convert to canonical units (ml for volume, g for weight)
  * - Convert back to display units (cups, tbsp, kg, etc.)
- * - Format quantities as nice fractions (1 1/2, 3/4, etc.)
+ *
+ * Quantity FORMATTING lives in src/lib/quantities.ts (single source of
+ * truth) — do not re-implement it here.
  */
 
 export const conversions = {
@@ -162,49 +164,4 @@ export function convertToDisplayUnit(canonicalQty: number, dimension: string) {
   return { qty: canonicalQty, unit: '' };
 }
 
-export function formatQuantity(quantity: number) {
-  if (!Number.isFinite(quantity)) return '';
-
-  function gcd(a: number, b: number) {
-    a = Math.abs(a); b = Math.abs(b);
-    while (b) [a, b] = [b, a % b];
-    return a || 1;
-  }
-
-  function toNiceFraction(x: number) {
-    const whole = Math.floor(x + 1e-10);
-    const frac = x - whole;
-
-    if (frac < 1e-6) return { whole, num: 0, den: 1 };
-
-    const dens = [2, 3, 4, 6, 8, 12, 16];
-    let best = { num: 0, den: 1, err: Infinity };
-
-    for (const den of dens) {
-      const num = Math.round(frac * den);
-      const approx = num / den;
-      const err = Math.abs(frac - approx);
-      if (err < best.err) best = { num, den, err };
-    }
-
-    const g = gcd(best.num, best.den);
-    const num = best.num / g;
-    const den = best.den / g;
-
-    if (num === den) return { whole: whole + 1, num: 0, den: 1 };
-    return { whole, num, den };
-  }
-
-  function formatQty(x: number) {
-    if (!Number.isFinite(x)) return "";
-    if (x === 0) return "0";
-
-    const { whole, num, den } = toNiceFraction(x);
-
-    if (num === 0) return String(whole);
-    if (whole === 0) return `${num}/${den}`;
-    return `${whole} ${num}/${den}`;
-  }
-
-  return formatQty(quantity);
-}
+// formatQuantity() removed — use formatQty() from src/lib/quantities.ts

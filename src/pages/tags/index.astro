@@ -1,29 +1,14 @@
 ---
-import { readdir } from "fs/promises";
-import { resolve } from "path";
-import { parseRecipeFile } from "../../utils/parse-recipe";
 import RecipeCard from "../../components/RecipeCard.astro";
 import ThemeToggle from "../../components/ThemeToggle.astro";
 import ViewControls from "../../components/ViewControls.astro";
 import Layout from "../../layouts/Layout.astro";
+import { getAllRecipes } from "../../lib/recipes";
 
-const recipesDir = resolve("recipes");
-const files = await readdir(recipesDir);
-const cookFiles = files.filter((f) => f.endsWith(".cook"));
+// Single shared loading pipeline (recursive discovery, frontmatter merge)
+const recipes = getAllRecipes();
 
-const recipes = cookFiles.map((file) => {
-  const filePath = resolve(recipesDir, file);
-  return parseRecipeFile(filePath, file);
-});
-
-// Sort by title
-recipes.sort((a, b) => {
-  const titleA = a.parsed.metadata.title || a.slug;
-  const titleB = b.parsed.metadata.title || b.slug;
-  return titleA.localeCompare(titleB);
-});
-
-// Get all unique tags
+// Get all unique tags (with slug mapping for URLs)
 const allTags = new Set<string>();
 recipes.forEach((recipe) => {
   const tags = recipe.parsed.metadata.tags || [];
@@ -79,42 +64,8 @@ const sortedTags = Array.from(allTags).sort();
   </div>
 
   <Fragment slot="scripts">
-    <script is:inline>
-      // Initialize view controls after DOM is ready
-      (function() {
-        const viewButtons = document.querySelectorAll('[data-view]');
-        const recipeGrid = document.getElementById('recipeGrid');
-
-        if (!viewButtons.length || !recipeGrid) return;
-
-        function setView(viewType) {
-          // Update button states
-          viewButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.view === viewType);
-          });
-
-          // Update grid class
-          recipeGrid.className = recipeGrid.className.replace(/view-\w+/g, '');
-          recipeGrid.classList.add(`view-${viewType}`);
-
-          // Save preference
-          localStorage.setItem('recipe-view-preference', viewType);
-        }
-
-        // Load saved preference
-        const savedView = localStorage.getItem('recipe-view-preference') || 'grid';
-        setView(savedView);
-
-        // Handle button clicks
-        viewButtons.forEach(button => {
-          button.addEventListener('click', () => {
-            setView(button.dataset.view);
-          });
-        });
-      })();
-    </script>
-
     <script>
+      // View controls come from ViewControls.astro (shared bundled script).
       const searchInput = document.getElementById('search');
       const recipeGrid = document.getElementById('recipeGrid');
       const noResults = document.getElementById('noResults');

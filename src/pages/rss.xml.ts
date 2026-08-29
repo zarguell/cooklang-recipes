@@ -1,53 +1,43 @@
-import { readdir } from "fs/promises";
-import { resolve } from "path";
-import { readFileSync } from "fs";
-import { Recipe } from "@tmlmt/cooklang-parser";
+import type { APIContext } from 'astro';
+import { getAllRecipes } from '../lib/recipes';
 
-export async function GET({ site }: { site: URL }) {
-  const recipesDir = resolve("recipes");
-  const files = await readdir(recipesDir);
-  const cookFiles = files.filter((f) => f.endsWith(".cook"));
-
-  const base = import.meta.env.BASE_URL; // base URL your site is served from. [web:58]
-  const siteUrl = site; // Astro passes configured site as a URL. [web:56]
+export async function GET({ site }: APIContext) {
+  const base = import.meta.env.BASE_URL;
+  const siteUrl = site; // Astro passes configured site as a URL.
 
   const channelTitle = process.env.PUBLIC_RSS_TITLE ?? "My Recipes";
   const channelDescription =
     process.env.PUBLIC_RSS_DESCRIPTION ??
     "A collection of recipes in CookLang format";
 
-  const items: string[] = [];
+  // Single shared loading pipeline — frontmatter titles/descriptions/dates
+  // are merged exactly like on every other page. Recipes without an
+  // explicit date fall back to the file's mtime instead of "now" (which
+  // used to make every recipe look freshly published on every deploy).
+  const items = getAllRecipes()
+    .map((recipe) => ({
+      ...recipe,
+      pubDate: recipe.parsed.metadata?.date
+        ? new Date(recipe.parsed.metadata.date)
+        : new Date(recipe.modifiedTime),
+    }))
+    .sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime())
+    .map((recipe) => {
+      const title = recipe.parsed.metadata.title || recipe.slug;
+      const description = recipe.parsed.metadata.description || "";
 
-  for (const file of cookFiles) {
-    const slug = file.replace(".cook", "");
-    const content = readFileSync(resolve(recipesDir, file), "utf-8");
+      // Build absolute URL: <site> + <base> + recipes/<slug>/
+      const recipePath = `${base}recipes/${recipe.slug}/`;
+      const recipeUrl = new URL(recipePath, siteUrl).toString();
 
-    let recipe;
-    try {
-      recipe = new Recipe(content);
-    } catch (error: any) {
-      console.error(`Error parsing ${file}:`, error?.message ?? error);
-      continue;
-    }
-
-    const title = recipe.metadata.title || slug;
-    const description = recipe.metadata.description || "";
-    const pubDate = recipe.metadata.date
-      ? new Date(recipe.metadata.date).toUTCString()
-      : new Date().toUTCString();
-
-    // Build absolute URL: <site> + <base> + recipes/<slug>/
-    const recipePath = `${base}recipes/${slug}/`;
-    const recipeUrl = new URL(recipePath, siteUrl).toString();
-
-    items.push(`    <item>
+      return `    <item>
       <title>${escapeXml(title)}</title>
       <description>${escapeXml(description)}</description>
       <link>${recipeUrl}</link>
       <guid isPermaLink="true">${recipeUrl}</guid>
-      <pubDate>${pubDate}</pubDate>
-    </item>`);
-  }
+      <pubDate>${recipe.pubDate.toUTCString()}</pubDate>
+    </item>`;
+    });
 
   // Channel <link> should also be absolute.
   const channelLink = new URL(base, siteUrl).toString();

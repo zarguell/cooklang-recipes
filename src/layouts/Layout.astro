@@ -1,4 +1,6 @@
 ---
+import '../styles/tokens.css';
+
 export interface Props {
 	title: string;
 	description?: string;
@@ -7,6 +9,22 @@ export interface Props {
 
 const { title, description, image } = Astro.props;
 const base = import.meta.env.BASE_URL; // ends with "/" when trailingSlash: 'always' [web:62]
+const siteName = import.meta.env.PUBLIC_APP_NAME ?? 'Recipe Site';
+const themeColor = import.meta.env.PUBLIC_THEME_COLOR ?? '#ff6b6b';
+
+// Canonical URL: Astro.url.pathname already includes the configured base.
+const canonical = Astro.site
+	? new URL(Astro.url.pathname, Astro.site).href
+	: undefined;
+
+// Absolute OG image (metadata images may be site-relative).
+const ogImage = image
+	? Astro.site && !/^https?:\/\//.test(image)
+		? new URL(image.replace(/^\/+/, ''), Astro.site).href
+		: image
+	: undefined;
+
+const pageTitle = title.includes(siteName) ? title : `${title} · ${siteName}`;
 ---
 
 <!DOCTYPE html>
@@ -14,50 +32,67 @@ const base = import.meta.env.BASE_URL; // ends with "/" when trailingSlash: 'alw
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>{title}</title>
+		<title>{pageTitle}</title>
 		{description && <meta name="description" content={description} />}
-		{image && <meta property="og:image" content={image} />}
+		{canonical && <link rel="canonical" href={canonical} />}
+
+		<!-- Open Graph / Twitter -->
+		<meta property="og:site_name" content={siteName} />
+		{canonical && <meta property="og:url" content={canonical} />}
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		{description && <meta property="og:description" content={description} />}
+		{ogImage && <meta property="og:image" content={ogImage} />}
+		<meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+		<meta name="twitter:title" content={title} />
+		{description && <meta name="twitter:description" content={description} />}
+		{ogImage && <meta name="twitter:image" content={ogImage} />}
+
+		<!-- Sitemap -->
+		<link rel="sitemap" href={`${base}sitemap-index.xml`} />
 
 		<!-- PWA Manifest -->
 		<link rel="manifest" href={`${base}manifest.webmanifest`} />
-		<meta name="theme-color" content="#ff6b35" />
-		<meta name="apple-mobile-web-app-title" content="Recipes" />
+		<meta name="theme-color" content={themeColor} />
 		<link rel="apple-touch-icon" href={`${base}icons/192x192.png`} />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="Recipes" />
+		<meta name="apple-mobile-web-app-title" content={siteName} />
+
+		<!--
+			Theme boot: apply the stored theme BEFORE first paint so dark-mode
+			users never see a light flash (MPA = every navigation).
+		-->
+		<script is:inline>
+			(function () {
+				try {
+					var pref = localStorage.getItem('theme-preference');
+					if (pref !== 'light' && pref !== 'dark' && pref !== 'system') pref = 'system';
+					var theme =
+						pref === 'system'
+							? window.matchMedia('(prefers-color-scheme: dark)').matches
+								? 'dark'
+								: 'light'
+							: pref;
+					document.documentElement.setAttribute('data-theme', theme);
+					document.documentElement.setAttribute('data-theme-pref', pref);
+				} catch (e) {
+					/* private mode etc. — default light theme applies */
+				}
+			})();
+		</script>
 
 		<!-- Theme toggle component -->
 		<slot name="head" />
 
 		<style>
-			/* Global theme variables */
+			/* Elevation tokens (colors/design tokens live in src/styles/tokens.css) */
 			:root {
-				--bg: #faf9f7;
-				--surface: #ffffff;
-				--text: #2d3436;
-				--muted: #636e72;
-				--border: #dfe6e9;
-				--accent: #ff6b6b;
-				--accent-2: #0984e3;
-				--input-bg: #ffffff;
-				--input-text: #2d3436;
-				--input-border: #dfe6e9;
-				--input-focus: #0984e3;
+				--shadow-card: 0 2px 4px rgba(0, 0, 0, 0.1);
 			}
 
 			html[data-theme="dark"] {
-				--bg: #1a1f2e;
-				--surface: #232937;
-				--text: #e1e8ed;
-				--muted: #8899a6;
-				--border: #38444d;
-				--accent: #ff6b6b;
-				--accent-2: #1da1f2;
-				--input-bg: #2f3336;
-				--input-text: #e1e8ed;
-				--input-border: #38444d;
-				--input-focus: #1da1f2;
+				--shadow-card: 0 2px 4px rgba(0, 0, 0, 0.4);
 			}
 
 			/* Global styles */
@@ -252,11 +287,12 @@ const base = import.meta.env.BASE_URL; // ends with "/" when trailingSlash: 'alw
 		</style>
 	</head>
 	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
 		<div class="theme-toggle-container">
 			<slot name="theme-toggle" />
 		</div>
 
-		<main>
+		<main id="main">
 			<slot />
 		</main>
 
@@ -303,72 +339,11 @@ const base = import.meta.env.BASE_URL; // ends with "/" when trailingSlash: 'alw
 			}
 		</style>
 
-		<script is:inline>
-			// Set correct placeholder for images that fail to load
-			document.addEventListener('error', (e) => {
-				if (e.target.tagName === 'IMG' && e.target.src.includes('No Image')) {
-					e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='var(--surface)' width='400' height='300'/%3E%3Ctext fill='var(--muted)' font-family='system-ui,sans-serif' font-size='18' x='50%25' y='50%25' text-anchor='middle' dy='.3em'%3E🍳 No Image%3C/text%3E%3C/svg%3E";
-					e.target.setAttribute('data-placeholder', 'true');
-				}
-			}, true);
-
-			// Initialize Shopping List globally
-			class ShoppingList {
-				constructor() {
-					this.storageKey = 'recipe-shopping-list';
-					this.list = this.loadList();
-				}
-
-				loadList() {
-					const stored = localStorage.getItem(this.storageKey);
-					return stored ? JSON.parse(stored) : { recipes: [] };
-				}
-
-				saveList() {
-					localStorage.setItem(this.storageKey, JSON.stringify(this.list));
-				}
-
-				addRecipe(recipeSlug, recipeTitle, ingredients) {
-					// Check if recipe already exists
-					const existingIndex = this.list.recipes.findIndex(r => r.slug === recipeSlug);
-
-					if (existingIndex >= 0) {
-						// Remove recipe if it already exists
-						this.list.recipes.splice(existingIndex, 1);
-					} else {
-						// Add new recipe
-						this.list.recipes.push({
-							slug: recipeSlug,
-							title: recipeTitle,
-							ingredients: ingredients,
-							addedAt: new Date().toISOString()
-						});
-					}
-
-					this.saveList();
-					return existingIndex >= 0; // returns true if recipe was removed
-				}
-
-				removeRecipe(recipeSlug) {
-					this.list.recipes = this.list.recipes.filter(r => r.slug !== recipeSlug);
-					this.saveList();
-				}
-
-				clearAll() {
-					this.list = { recipes: [] };
-					this.saveList();
-				}
-
-				isRecipeInList(recipeSlug) {
-					return this.list.recipes.some(r => r.slug === recipeSlug);
-				}
-			}
-
-			// Create global shopping list instance
-			window.shoppingList = new ShoppingList();
-		</script>
-
-		
+		<!--
+			The shopping list store lives in src/scripts/shopping-list-store.ts
+			and is imported directly by the pages/scripts that need it — no
+			window.* globals.
+		-->
 		<slot name="scripts" />
 	</body>
 </html>
