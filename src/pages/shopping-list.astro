@@ -1,31 +1,25 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import ThemeToggle from "../components/ThemeToggle.astro";
+import Icon from "../components/Icon.astro";
 
 const title = "Shopping List";
 const baseUrl = import.meta.env.BASE_URL;
 ---
 
 <Layout title={title}>
-  <Fragment slot="theme-toggle">
-    <ThemeToggle />
-  </Fragment>
 
   <header class="page-header">
     <div class="header-top">
-      <a href={import.meta.env.BASE_URL} class="back-button">← Back to recipes</a>
-      <h1><span aria-hidden="true">🛒</span> Shopping List</h1>
+      <h1>Shopping List</h1>
     </div>
     <div class="header-actions">
-      <button type="button" class="button secondary" id="copyListBtn">Copy</button>
-      <button type="button" class="button secondary" id="exportCsvBtn">CSV</button>
-      <button type="button" class="button secondary" id="exportJsonBtn">Backup</button>
-      <button type="button" class="button secondary" id="importJsonBtn">Import</button>
+      <button type="button" class="button icon-only" id="copyListBtn" aria-label="Copy list as text" title="Copy list as text"><Icon name="copy" size={18} /></button>
+      <button type="button" class="button icon-only" id="exportCsvBtn" aria-label="Download CSV" title="Download CSV"><Icon name="download" size={18} /></button>
+      <button type="button" class="button icon-only" id="exportJsonBtn" aria-label="Download JSON backup" title="Download JSON backup"><Icon name="download" size={18} /></button>
+      <button type="button" class="button icon-only" id="importJsonBtn" aria-label="Import JSON backup" title="Import JSON backup"><Icon name="upload" size={18} /></button>
       <input type="file" id="importFileInput" accept="application/json,.json" hidden />
-      <button type="button" class="button secondary" id="printListBtn">Print</button>
-      <button type="button" class="button secondary" id="clearListBtn">
-        <span aria-hidden="true">🗑️</span> Clear All
-      </button>
+      <button type="button" class="button icon-only" id="printListBtn" aria-label="Print list" title="Print list"><Icon name="printer" size={18} /></button>
+      <button type="button" class="button icon-only" id="clearListBtn" aria-label="Clear list" title="Clear list"><Icon name="close" size={18} /></button>
     </div>
     <div id="toast" class="toast" role="status" hidden>
       <span id="toastMessage"></span>
@@ -35,7 +29,7 @@ const baseUrl = import.meta.env.BASE_URL;
 
   <div class="shopping-list-container">
     <div id="empty-state" class="empty-state">
-      <div class="empty-icon">🛒</div>
+      <div class="empty-icon" aria-hidden="true"><Icon name="cart" size={56} /></div>
       <h2>Your shopping list is empty</h2>
       <p>Add recipes from the recipe pages to build your shopping list!</p>
       <a href={import.meta.env.BASE_URL} class="button primary">
@@ -247,7 +241,17 @@ const baseUrl = import.meta.env.BASE_URL;
 
 <style>
   .page-header {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .button.icon-only {
+    padding: 0.5rem 0.6rem;
   }
 
   .header-top {
@@ -351,9 +355,9 @@ const baseUrl = import.meta.env.BASE_URL;
   }
 
   .empty-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
+    color: var(--text-2);
     opacity: 0.6;
+    margin-bottom: 1rem;
   }
 
   .empty-state h2 {
@@ -537,33 +541,9 @@ const baseUrl = import.meta.env.BASE_URL;
     text-align: center;
   }
 
-  .back-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--accent-2);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    border: 0;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
 
-  .back-button:hover {
-    background: #0770c9;
-    text-decoration: none;
-  }
 
-  html[data-theme="dark"] .back-button {
-    background: #5db2ff;
-  }
 
-  html[data-theme="dark"] .back-button:hover {
-    background: #7dc3ff;
-  }
 
   .button {
     background: var(--accent-2);
@@ -581,7 +561,7 @@ const baseUrl = import.meta.env.BASE_URL;
   }
 
   .button:hover {
-    background: #0770c9;
+    background: var(--surface-2);
     text-decoration: none;
   }
 
@@ -599,11 +579,5 @@ const baseUrl = import.meta.env.BASE_URL;
     background: var(--border);
   }
 
-  html[data-theme="dark"] .button {
-    background: #5db2ff;
-  }
 
-  html[data-theme="dark"] .button:hover {
-    background: #7dc3ff;
-  }
 </style>

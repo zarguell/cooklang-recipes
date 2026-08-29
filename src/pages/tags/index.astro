@@ -1,6 +1,5 @@
 ---
 import RecipeCard from "../../components/RecipeCard.astro";
-import ThemeToggle from "../../components/ThemeToggle.astro";
 import ViewControls from "../../components/ViewControls.astro";
 import Layout from "../../layouts/Layout.astro";
 import { getAllRecipes } from "../../lib/recipes";
@@ -18,15 +17,12 @@ const sortedTags = Array.from(allTags).sort();
 ---
 
 <Layout title="Recipe Collection" description={`${recipes.length} recipes available`}>
-  <Fragment slot="theme-toggle">
-    <ThemeToggle />
-  </Fragment>
 
   <div class="container">
-    <div class="page-header">
-      <a href={import.meta.env.BASE_URL} class="back-button">← Back to recipes</a>
-      <h1>🍳 Recipe Collection</h1>
-    </div>
+    <header class="page-header">
+      <h1>Tags</h1>
+      <p class="page-subtitle">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} · pick a tag to filter</p>
+    </header>
     <p class="subtitle">{recipes.length} recipes available</p>
 
     <div class="controls">
@@ -127,6 +123,17 @@ const sortedTags = Array.from(allTags).sort();
     max-width: 100%;
   }
 
+  .page-header h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .page-subtitle {
+    color: var(--text-2);
+    margin: 0.15rem 0 0;
+  }
+
   .page-header {
     display: flex;
     justify-content: space-between;
@@ -136,33 +143,9 @@ const sortedTags = Array.from(allTags).sort();
     gap: 1rem;
   }
 
-  .back-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--accent-2);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    border: 0;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
 
-  .back-button:hover {
-    background: #0770c9;
-    text-decoration: none;
-  }
 
-  html[data-theme="dark"] .back-button {
-    background: #5db2ff;
-  }
 
-  html[data-theme="dark"] .back-button:hover {
-    background: #7dc3ff;
-  }
 
   .subtitle {
     color: var(--muted);
@@ -256,18 +239,18 @@ const sortedTags = Array.from(allTags).sort();
 
   /* Dark mode tag button adjustments */
   html[data-theme="dark"] .tag-button {
-    color: #5db2ff;
-    border-color: #5db2ff;
+    color: var(--teal);
+    border-color: var(--teal);
   }
 
   html[data-theme="dark"] .tag-button:hover {
-    background: #5db2ff;
+    background: var(--primary);
     color: var(--surface);
   }
 
   html[data-theme="dark"] .tag-button.active {
-    background: #5db2ff;
-    border-color: #5db2ff;
+    background: var(--primary);
+    border-color: var(--teal);
   }
 
   .recipe-grid {

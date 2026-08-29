@@ -68,7 +68,7 @@ export default defineConfig({
         description:
           process.env.PUBLIC_APP_DESCRIPTION ??
           'A beautiful static recipe site built with Astro and CookLang',
-        theme_color: process.env.PUBLIC_THEME_COLOR ?? '#ff6b6b',
+        theme_color: process.env.PUBLIC_THEME_COLOR ?? '#E58325',
         background_color: process.env.PUBLIC_BG_COLOR ?? '#ffffff',
         display: 'standalone',
         start_url: BASE_WITH_TRAILING,

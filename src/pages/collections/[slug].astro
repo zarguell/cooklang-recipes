@@ -1,6 +1,5 @@
 ---
 import RecipeCard from "../../components/RecipeCard.astro";
-import ThemeToggle from "../../components/ThemeToggle.astro";
 import ViewControls from "../../components/ViewControls.astro";
 import Layout from "../../layouts/Layout.astro";
 import { getAllRecipes } from "../../lib/recipes";
@@ -20,11 +19,7 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <Layout title={collection.name} description={collection.description ?? `Recipe collection: ${collection.name}`}>
-  <Fragment slot="theme-toggle">
-    <ThemeToggle />
-  </Fragment>
 
-  <a href={base} class="back-link">← Back to all recipes</a>
   <h1>{collection.name}</h1>
   {collection.description && <p class="collection-description">{collection.description}</p>}
   <p class="collection-count">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</p>

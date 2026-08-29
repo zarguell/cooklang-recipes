@@ -1,10 +1,10 @@
 ---
 import JsonLdSchema from "../../components/JsonLdSchema.astro";
+import Icon from "../../components/Icon.astro";
 import IngredientList from "../../components/IngredientList.astro";
 import RecipeSteps from "../../components/RecipeSteps.astro";
 import CookwareList from "../../components/CookwareList.astro";
 import CooklangSourceBlock from "../../components/CooklangSourceBlock.astro";
-import ThemeToggle from "../../components/ThemeToggle.astro";
 import Layout from "../../layouts/Layout.astro";
 import { buildRecipeJsonLd } from "../../utils/recipe-metadata";
 import { getAllRecipes, slugifyTag, extractSteps } from "../../lib/recipes";
@@ -39,16 +39,12 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
 ---
 
 <Layout title={recipe.metadata.title || slug} description={recipe.metadata.description} image={imageUrl}>
-  <Fragment slot="theme-toggle">
-    <ThemeToggle />
-  </Fragment>
 
   <Fragment slot="head">
     <JsonLdSchema schema={jsonLd} />
   </Fragment>
 
   <div class="recipe-header" data-pagefind-body>
-    <a href={import.meta.env.BASE_URL} class="back-button" data-pagefind-ignore>← Back to recipes</a>
     <h1>
       {recipe.metadata.title || slug}
       <button
@@ -61,7 +57,7 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
         title="Favorite"
       >★</button>
     </h1>
-    {recipe.metadata.description && <p>{recipe.metadata.description}</p>}
+    {recipe.metadata.description && <p class="recipe-description">{recipe.metadata.description}</p>}
 
     {tags.length > 0 && (
       <div class="tags">
@@ -81,17 +77,17 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
     )}
 
     <div class="recipe-controls" data-recipe-controls data-pagefind-ignore>
-      <button type="button" class="button secondary" id="recipePrintBtn">
-        <span aria-hidden="true">🖨️</span> Print
-      </button>
-      <button type="button" class="button primary" id="addToShoppingListBtn"
+      <a class="button primary" href={`${import.meta.env.BASE_URL}recipes/${slug}/cook/`}>
+        <Icon name="list" size={18} /> Start cooking
+      </a>
+      <button type="button" class="button" id="addToShoppingListBtn"
               data-recipe-slug={slug}
               data-recipe-title={recipe.metadata.title || slug}>
-        <span aria-hidden="true">🛒</span> Add to Shopping List
+        <Icon name="cart" size={18} /> Add to Shopping List
       </button>
-      <a class="button cook-link" href={`${import.meta.env.BASE_URL}recipes/${slug}/cook/`}>
-        <span aria-hidden="true">▶️</span> Start cooking
-      </a>
+      <button type="button" class="button icon-only" id="recipePrintBtn" aria-label="Print recipe" title="Print">
+        <Icon name="printer" size={18} />
+      </button>
 
       <div class="scale" role="group" aria-label="Recipe scaling">
         <button type="button" class="scale-btn" id="scaleMinus" aria-label="Decrease scale">−</button>
@@ -125,38 +121,33 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
         />
       ) : null}
       <div class="image-fallback" style={imageUrl ? "display: none;" : "display: flex;"}>
-        <span class="fallback-icon">🍳</span>
+        <Icon name="recipes" size={44} class="fallback-icon" />
         <span class="fallback-text">No Image</span>
       </div>
     </div>
 
     <div class="recipe-meta">
-      {recipe.metadata?.servings && (
-        <div class="meta-item">
-          <div class="meta-label">Servings</div>
-          <div class="meta-value" data-base-servings>{recipe.metadata.servings}</div>
-        </div>
-      )}
-
-      {recipe.metadata?.["prep-time"] && (
-        <div class="meta-item">
-          <div class="meta-label">Prep Time</div>
-          <div class="meta-value">{recipe.metadata["prep-time"]}</div>
-        </div>
-      )}
-
-      {recipe.metadata?.["cook-time"] && (
-        <div class="meta-item">
-          <div class="meta-label">Cook Time</div>
-          <div class="meta-value">{recipe.metadata["cook-time"]}</div>
-        </div>
-      )}
-
       {recipe.metadata?.["total-time"] && (
-        <div class="meta-item">
-          <div class="meta-label">Total Time</div>
-          <div class="meta-value">{recipe.metadata["total-time"]}</div>
-        </div>
+        <span class="meta-chip">
+          <Icon name="clock" size={15} />
+          {recipe.metadata["total-time"]}
+        </span>
+      )}
+      {recipe.metadata?.["prep-time"] && (
+        <span class="meta-chip">
+          prep {recipe.metadata["prep-time"]}
+        </span>
+      )}
+      {recipe.metadata?.["cook-time"] && (
+        <span class="meta-chip">
+          cook {recipe.metadata["cook-time"]}
+        </span>
+      )}
+      {recipe.metadata?.servings && (
+        <span class="meta-chip">
+          <Icon name="recipes" size={15} />
+          <span data-base-servings>{recipe.metadata.servings}</span> servings
+        </span>
       )}
     </div>
   </div>
@@ -164,13 +155,13 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
   <div class="recipe-content" data-pagefind-body>
     <div class="recipe-column">
       <div class="recipe-section">
-        <h2><span aria-hidden="true">🥘</span> Ingredients</h2>
+        <h2 class="section-title"><Icon name="cart" size={20} /> Ingredients</h2>
         <IngredientList ingredients={ingredients} />
       </div>
 
       {cookwareList.length > 0 && (
         <div class="recipe-section">
-          <h2><span aria-hidden="true">🍳</span> Cookware</h2>
+          <h2 class="section-title"><Icon name="list" size={20} /> Cookware</h2>
           <CookwareList cookware={cookwareList} />
         </div>
       )}
@@ -178,7 +169,7 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
 
     <div class="recipe-column">
       <div class="recipe-section">
-        <h2><span aria-hidden="true">👨‍🍳</span> Instructions</h2>
+        <h2 class="section-title"><Icon name="check" size={20} /> Instructions</h2>
         {steps.length > 0 ? (
           <RecipeSteps parsed={recipe} />
         ) : (
@@ -274,6 +265,38 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
     margin-bottom: 1rem;
   }
 
+  .recipe-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.35rem;
+  }
+
+  .recipe-description {
+    color: var(--text-2);
+    font-size: 1.05rem;
+    margin: 0.35rem 0 0;
+    max-width: 60ch;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.15rem;
+  }
+
+  .section-title :global(svg) {
+    color: var(--primary);
+  }
+
+  .button.icon-only {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .button :global(svg) {
+    flex-shrink: 0;
+  }
+
   .fav-star {
     border: 0;
     background: transparent;
@@ -359,7 +382,7 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
   }
 
   .cook-link:hover {
-    background: #ee5a52;
+    background: var(--primary-darken);
   }
 
   .print-scale-note {
@@ -408,7 +431,7 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
   }
 
   .fallback-icon {
-    font-size: 3rem;
+    color: var(--text-2);
     opacity: 0.6;
   }
 
@@ -419,61 +442,78 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
   }
 
   .recipe-meta {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
     align-content: start;
   }
 
-  .meta-item {
-    background: var(--surface);
-    padding: 1rem;
-    border-radius: 6px;
-    border-left: 3px solid var(--accent);
-  }
-
-  .meta-label {
+  .meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--surface-2);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
     font-size: 0.85rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 0.25rem;
+    font-weight: 600;
+    color: var(--text-2);
   }
 
-  .meta-value {
-    font-weight: bold;
-    color: var(--text);
-    font-size: 1.25rem;
+  .meta-chip :global(svg) {
+    color: var(--primary);
   }
 
   .recipe-content {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin: 2rem 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: 0;
+    margin: 2rem 0 0;
+    border-top: 1px solid var(--border);
   }
 
   .recipe-column {
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    padding: 1.5rem 1.5rem 1.5rem 0;
+  }
+
+  /* Mealie's border-e-thin pattern: one quiet divider, no card boxes */
+  .recipe-column:first-child {
+    position: sticky;
+    top: calc(var(--nav-h) + 1rem);
+    align-self: start;
+    max-height: calc(100vh - var(--nav-h) - 2rem);
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    padding-right: 1.5rem;
+  }
+
+  .recipe-column:last-child {
+    padding-left: 1.5rem;
   }
 
   @media (max-width: 968px) {
     .recipe-content {
       grid-template-columns: 1fr;
     }
-  }
 
-  .recipe-section {
-    background: var(--surface);
-    padding: 1.5rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    .recipe-column:first-child {
+      position: static;
+      max-height: none;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+      padding-right: 0;
+    }
+
+    .recipe-column:last-child {
+      padding-left: 0;
+    }
   }
 
   .recipe-section h2 {
-    color: var(--text);
-    border-bottom: 2px solid var(--accent);
+    color: var(--text-1);
     padding-bottom: 0.5rem;
     margin-top: 0;
     margin-bottom: 1rem;
@@ -505,12 +545,12 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
 
   /* Dark mode tag adjustments */
   html[data-theme="dark"] .tag {
-    color: #5db2ff;
-    border-color: #5db2ff;
+    color: var(--teal);
+    border-color: var(--teal);
   }
 
   html[data-theme="dark"] .tag:hover {
-    background: #5db2ff;
+    background: var(--primary);
     color: var(--surface);
   }
 
@@ -543,42 +583,17 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
 
   /* Dark mode source link adjustments */
   html[data-theme="dark"] .source a {
-    color: #5db2ff;
+    color: var(--teal);
   }
 
   html[data-theme="dark"] .source a:hover {
-    color: #7dc3ff;
+    color: var(--teal);
   }
 
   /* Back button styling */
-  .back-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--accent-2);
-    color: white;
-    padding: 0.75rem 1.5rem;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    border: 0;
-    cursor: pointer;
-    transition: background 0.2s;
-    margin-bottom: 1rem;
-  }
 
-  .back-button:hover {
-    background: #0770c9;
-    text-decoration: none;
-  }
 
-  html[data-theme="dark"] .back-button {
-    background: #5db2ff;
-  }
 
-  html[data-theme="dark"] .back-button:hover {
-    background: #7dc3ff;
-  }
 
   /* Recipe image responsive styling */
   .recipe-image-container {
@@ -618,8 +633,6 @@ const jsonLd = buildRecipeJsonLd({ slug, title: loaded.title, parsed: recipe });
     }
 
     .recipe-section {
-      box-shadow: none;
-      border: 1px solid #ccc;
       break-inside: avoid;
     }
 

@@ -1,6 +1,7 @@
 ---
 import Layout from "../../../layouts/Layout.astro";
 import { getAllRecipes, resolveSteps } from "../../../lib/recipes";
+import Icon from "../../../components/Icon.astro";
 import { formatQtyWithUnit } from "../../../lib/quantities";
 
 export async function getStaticPaths() {
@@ -79,7 +80,7 @@ const recipeUrl = `${base}recipes/${slug}/`;
       ))}
 
       <section class="cook-step cook-finished" data-step-index={resolvedSteps.length} hidden>
-        <p class="cook-done-emoji" aria-hidden="true">🍰</p>
+        <Icon name="recipes" size={64} class="cook-done-icon" />
         <h2>Enjoy!</h2>
         <p class="cook-done-text">{title}</p>
         <a href={recipeUrl} class="cook-btn primary">Back to recipe</a>
@@ -475,9 +476,9 @@ const recipeUrl = `${base}recipes/${slug}/`;
     padding-top: 4rem;
   }
 
-  .cook-done-emoji {
-    font-size: 5rem;
-    margin: 0;
+  .cook-done-icon {
+    color: var(--primary);
+    margin: 0 auto;
   }
 
   .cook-done-text {
@@ -519,7 +520,7 @@ const recipeUrl = `${base}recipes/${slug}/`;
   }
 
   .cook-btn.primary:hover {
-    background: #ee5a52;
+    background: var(--primary-darken);
   }
 
   .cook-btn.nav {

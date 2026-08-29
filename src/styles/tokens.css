@@ -1,53 +1,86 @@
 /*
- * Design tokens — the single source of truth for themeable design values.
- * Imported globally by src/layouts/Layout.astro.
- *
- * Component code must use these variables, never raw color values.
- * (Audit finding: hardcoded blues/oranges had drifted across pages.)
+ * Design tokens v2 — warm palette derived from the established recipe apps
+ * (see docs/get-well/07-ui-ux-audit.md):
+ *   - primary: Mealie's warm orange #E58325
+ *   - accent:  Mealie's deep teal #007A99 (links, secondary UI)
+ *   - dark surfaces: Mealie's #1E1E1E family
+ * Legacy variable names (--accent, --accent-2, --text, --muted, ...) are
+ * kept as aliases so every existing component re-themes at once.
+ * Component code must use these variables — never raw colors.
  */
 
 :root {
   color-scheme: light;
 
+  /* Semantic palette */
+  --primary: #E58325;
+  --primary-darken: #c96e1a;
+  --primary-soft: rgba(229, 131, 37, 0.12);
+  --teal: #007A99;
+  --secondary: #973542;
+  --success: #43A047;
+  --warning: #FF6D00;
+  --danger: #EF5350;
+
+  /* Neutrals (warm paper) */
   --bg: #faf9f7;
   --surface: #ffffff;
-  --text: #2d3436;
-  --muted: #636e72;
-  --border: #dfe6e9;
-  --accent: #ff6b6b;
-  --accent-2: #0984e3;
-  --input-bg: #ffffff;
-  --input-text: #2d3436;
-  --input-border: #dfe6e9;
-  --input-focus: #0984e3;
+  --surface-2: #f3efe9;
+  --border: #e5ddd0;
+  --text-1: #2d2a26;
+  --text-2: #6e675e;
 
-  --focus-ring: 2px solid var(--accent-2);
+  /* Shell metrics */
+  --nav-h: 56px;
+  --sidebar-w: 232px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-card: 0 1px 3px rgba(45, 42, 38, 0.08), 0 1px 2px rgba(45, 42, 38, 0.06);
+  --shadow-card-hover: 0 4px 14px rgba(45, 42, 38, 0.14);
+  --shadow-nav: 0 1px 4px rgba(45, 42, 38, 0.18);
+
+  --focus-ring: 2px solid var(--teal);
   --focus-offset: 2px;
+
+  /* ---- Legacy aliases (existing components) ---- */
+  --accent: var(--primary);
+  --accent-2: var(--teal);
+  --text: var(--text-1);
+  --muted: var(--text-2);
+  --input-bg: var(--surface);
+  --input-text: var(--text-1);
+  --input-border: var(--border);
+  --input-focus: var(--teal);
 }
 
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: #1a1f2e;
-  --surface: #232937;
-  --text: #e1e8ed;
-  --muted: #8899a6;
-  --border: #38444d;
-  --accent: #ff6b6b;
-  --accent-2: #1da1f2;
-  --input-bg: #2f3336;
-  --input-text: #e1e8ed;
-  --input-border: #38444d;
-  --input-focus: #1da1f2;
+  --primary: #E58325;
+  --primary-darken: #f0973f;
+  --primary-soft: rgba(229, 131, 37, 0.16);
+  --teal: #4fb3d9;
+  --secondary: #c25a6b;
+
+  --bg: #1E1E1E;
+  --surface: #252525;
+  --surface-2: #2e2e2e;
+  --border: #3a3a3a;
+  --text-1: #e8e4de;
+  --text-2: #a39d94;
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-nav: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Accessible focus for every interactive element (a11y audit finding). */
+/* Accessible focus for every interactive element. */
 :focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
 
-/* Respect users who prefer minimal motion (a11y audit finding). */
+/* Respect users who prefer minimal motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -63,12 +96,13 @@ html[data-theme="dark"] {
 .skip-link {
   position: absolute;
   top: -100%;
-  left: 1rem;
-  z-index: 2000;
-  background: var(--accent-2);
-  color: white;
+  left: 0.5rem;
+  z-index: 3000;
+  background: var(--surface);
+  color: var(--text-1);
+  border: 2px solid var(--primary);
   padding: 0.6rem 1rem;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--radius) var(--radius);
   font-weight: 700;
   text-decoration: none;
 }

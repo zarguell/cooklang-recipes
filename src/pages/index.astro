@@ -1,6 +1,5 @@
 ---
 import RecipeCard from "../components/RecipeCard.astro";
-import ThemeToggle from "../components/ThemeToggle.astro";
 import ViewControls from "../components/ViewControls.astro";
 import Layout from "../layouts/Layout.astro";
 import { getAllRecipes } from "../lib/recipes";
@@ -39,28 +38,10 @@ const directory = Object.fromEntries(
 ---
 
 <Layout title="My Recipes">
-  <Fragment slot="theme-toggle">
-    <ThemeToggle />
-  </Fragment>
 
   <header class="page-header">
-    <h1><span aria-hidden="true">🍳</span> My Recipes</h1>
-    <div class="header-controls">
-      <div class="header-buttons">
-        <a href={`${base}planner/`} class="button secondary">
-          <span aria-hidden="true">📅</span> Planner
-        </a>
-        <a href={`${base}shopping-list/`} class="button primary">
-          <span aria-hidden="true">🛒</span> Shopping List
-        </a>
-        <a href={`${base}tags/`} class="button secondary">
-          <span aria-hidden="true">🏷️</span> Tags
-        </a>
-        <a href={`${base}rss.xml`} class="button secondary" target="_blank">
-          <span aria-hidden="true">📡</span> RSS
-        </a>
-      </div>
-    </div>
+    <h1>Recipes</h1>
+    <p class="page-subtitle">{recipes.length} recipe{recipes.length !== 1 ? "s" : ""} in your cookbook</p>
   </header>
 
   <section id="recentsSection" class="recents" hidden>
@@ -68,7 +49,7 @@ const directory = Object.fromEntries(
     <div id="recentsRow" class="recents-row"></div>
   </section>
 
-  <div class="search-row">
+  <div class="search-row" id="searchBox-anchor">
     <input
       type="search"
       class="search-box"
@@ -376,6 +357,21 @@ const directory = Object.fromEntries(
 </Layout>
 
 <style>
+  .page-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 0.15rem;
+  }
+
+  .page-subtitle {
+    color: var(--text-2);
+    margin: 0;
+  }
+
   .section-label {
     font-size: 0.85rem;
     text-transform: uppercase;
