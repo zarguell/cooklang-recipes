@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, skipIf } from 'vitest';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   listRecipeFiles,
   loadRecipeFile,
@@ -8,9 +10,11 @@ import {
   parseFrontmatter,
   extractSteps,
 } from '../src/lib/recipes';
-import { resolve } from 'node:path';
 
 const examplePath = resolve('recipes', 'example.cook');
+// The template ships example.cook; downstream recipe repos replace the
+// recipes/ directory with their own collection — skip those tests there.
+const hasExample = existsSync(examplePath);
 
 describe('listRecipeFiles', () => {
   it('finds recipes recursively (regression: flat readdir dropped subfolders)', () => {
@@ -21,19 +25,21 @@ describe('listRecipeFiles', () => {
 });
 
 describe('loadRecipeFile', () => {
-  it('merges YAML frontmatter into metadata (regression: RSS showed slugs)', () => {
-    const recipe = loadRecipeFile(examplePath);
-    expect(recipe.slug).toBe('example');
-    expect(recipe.parsed.metadata.tags).toEqual(['fun', 'quick']);
-    expect(recipe.parsed.metadata.source).toBe('https://www.jamieoliver.com/recipes/eggs-recipes/easy-pancakes/');
+  describe.skipIf(!hasExample)('with the template example recipe', () => {
+    it('merges YAML frontmatter into metadata (regression: RSS showed slugs)', () => {
+      const recipe = loadRecipeFile(examplePath);
+      expect(recipe.slug).toBe('example');
+      expect(recipe.parsed.metadata.tags).toEqual(['fun', 'quick']);
+      expect(recipe.parsed.metadata.source).toBe('https://www.jamieoliver.com/recipes/eggs-recipes/easy-pancakes/');
+    });
+
+    it('falls back to slug title when no frontmatter title exists', () => {
+      const recipe = loadRecipeFile(examplePath);
+      expect(recipe.title).toBe('example');
+    });
   });
 
-  it('falls back to slug title when no frontmatter title exists', () => {
-    const recipe = loadRecipeFile(examplePath);
-    expect(recipe.title).toBe('example');
-  });
-
-  it('captures file mtime as a stable fallback date', () => {
+  it.skipIf(!hasExample)('captures file mtime as a stable fallback date', () => {
     const recipe = loadRecipeFile(examplePath);
     expect(() => new Date(recipe.modifiedTime)).not.toThrow();
     expect(new Date(recipe.modifiedTime).getTime()).not.toBeNaN();
@@ -45,12 +51,12 @@ describe('getAllRecipes', () => {
     const recipes = getAllRecipes();
     expect(recipes.length).toBeGreaterThan(0);
     const titles = recipes.map((r) => r.title);
-    expect([...titles].sort()).toEqual(titles);
+    expect([...titles].sort((a, b) => a.localeCompare(b))).toEqual(titles);
   });
 });
 
 describe('extractSteps', () => {
-  it('pulls steps out of sections in order', () => {
+  it.skipIf(!hasExample)('pulls steps out of sections in order', () => {
     const recipe = loadRecipeFile(examplePath);
     const steps = extractSteps(recipe.parsed);
     expect(steps.length).toBeGreaterThan(0);
@@ -80,6 +86,6 @@ describe('slugify helpers', () => {
   });
 
   it('flattens nested recipe paths to unique slugs', () => {
-    expect(slugFromPath('/x/recipes/cake.cook'.replace('/x/recipes', resolve('recipes')))).toBe('cake');
+    expect(slugFromPath(resolve('recipes', 'nested', 'dir', 'cake.cook'))).toBe('nested--dir--cake');
   });
 });

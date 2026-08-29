@@ -77,10 +77,13 @@ describe('collections', () => {
     expect(Array.isArray(collections)).toBe(true);
   });
 
-  it('repo example collection parses and has a slug', () => {
+  it('repo collections parse and have unique slugs (config-agnostic)', () => {
     const collections = loadCollections();
-    expect(collections.length).toBeGreaterThan(0);
-    expect(collections[0].slug).toBe('quick-wins');
-    expect(collections[0].tags).toContain('quick');
+    const slugs = collections.map((c) => c.slug);
+    expect(slugs.length).toBeGreaterThan(0);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const c of collections) {
+      expect(c.name).toBeTruthy();
+    }
   });
 });
