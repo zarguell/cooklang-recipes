@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
-import VitePWA from '@vite-pwa/astro';
+// @vite-pwa/astro v2 removed the default export: the integration is now a named export.
+import { AstroPWAIntegration as VitePWA } from '@vite-pwa/astro';
 import sitemap from '@astrojs/sitemap';
 
 // In astro.config.mjs, use process.env (Astro loads config before .env files). [web:92]
@@ -38,7 +39,8 @@ export default defineConfig({
     sitemap(),
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: {
+      // v2 renamed the top-level `workbox` option to `generateSW` (same options).
+      generateSW: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,webmanifest}'],
         // Offline reads: visited recipe pages + images are cached at runtime
         // (precache only covers build-known assets at install time).
